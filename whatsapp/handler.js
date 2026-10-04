@@ -3,6 +3,7 @@ const commandLoader = require("../lib/commandLoader");
 const permissionMiddleware = require("../lib/permissionMiddleware");
 const activityTracker = require("../lib/activityTracker");
 const groupProtection = require("../lib/groupProtection");
+const settings = require("../lib/settingsStore");
 
 let commandsLoaded = false;
 
@@ -17,15 +18,15 @@ function getMessageText(msg) {
 function reactionFor(text) {
   const value = text.trim().toLowerCase();
   const rules = [
-    [/\\b(bonjour|salut|slt|hello|coucou)\\b/, "👋"],
-    [/\\b(merci|thanks|thank you|thx)\\b/, "❤️"],
-    [/\\b(mdr|mdrr|ptdr|lol)\\b|😂|🤣/, "😂"],
-    [/\\b(bravo|félicitations|felicitations|gg)\\b/, "🔥"],
-    [/\\b(bonne nuit|good night)\\b/, "🌙"],
-    [/\\b(bonne chance|good luck)\\b/, "🍀"],
-    [/\\b(ok|d'accord|dac|compris|exact)\\b/, "👍"],
-    [/\\b(waouh|wow|incroyable|magnifique)\\b/, "🤩"],
-    [/\\b(triste|désolé|desole|pardon)\\b/, "❤️"],
+    [/\b(bonjour|salut|slt|hello|coucou)\b/, "👋"],
+    [/\b(merci|thanks|thank you|thx)\b/, "❤️"],
+    [/\b(mdr|mdrr|ptdr|lol)\b|😂|🤣/, "😂"],
+    [/\b(bravo|félicitations|felicitations|gg)\b/, "🔥"],
+    [/\b(bonne nuit|good night)\b/, "🌙"],
+    [/\b(bonne chance|good luck)\b/, "🍀"],
+    [/\b(ok|d'accord|dac|compris|exact)\b/, "👍"],
+    [/\b(waouh|wow|incroyable|magnifique)\b/, "🤩"],
+    [/\b(triste|désolé|desole|pardon)\b/, "❤️"],
     [/^[❤️💔😂🤣😍🔥👍👎👏🎉🤩😎🥳]+$/, "🔥"]
   ];
   for (const [pattern, emoji] of rules) {
@@ -42,11 +43,21 @@ async function react(sock, msg, emoji) {
   }
 }
 
-async function maybeReact(sock, msg, text) {
-  if (!config.autoReact || msg.key.fromMe) return;
-  if (!text || text.startsWith(config.prefix)) return;
+async function maybeReact(sock, msg, text, current) {
+  if (!current.autoreact || msg.key.fromMe) return;
+  if (!text || text.startsWith(current.prefix)) return;
   const emoji = reactionFor(text);
   if (emoji) await react(sock, msg, emoji);
+}
+
+async function applyPresence(sock, jid, current) {
+  try {
+    if (current.online) {
+      await sock.sendPresenceUpdate("available", jid);
+    }
+  } catch (error) {
+    console.error("Presence error:", error.message);
+  }
 }
 
 async function messageHandler(sock, msg) {
@@ -57,6 +68,7 @@ async function messageHandler(sock, msg) {
     const sender = msg.key.remoteJid;
     const isGroup = msg.key.remoteJid?.endsWith("@g.us");
     const senderNumber = msg.key.participant || sender;
+    const current = settings.get(isGroup ? sender : "global");
 
     if (isGroup && !msg.key.fromMe) {
       await activityTracker.record(sender, senderNumber);
@@ -68,11 +80,16 @@ async function messageHandler(sock, msg) {
       return sock.sendMessage(sender, { text: "🔧 Bot is under maintenance. Please try again later." });
     }
 
-    await maybeReact(sock, msg, text);
+    if (current.autoread && !msg.key.fromMe) {
+      try { await sock.readMessages([msg.key]); } catch {}
+    }
 
-    if (!text.startsWith(config.prefix)) return;
+    await maybeReact(sock, msg, text, current);
+    await applyPresence(sock, sender, current);
 
-    const args = text.slice(config.prefix.length).trim().split(/\s+/);
+    if (!text.startsWith(current.prefix)) return;
+
+    const args = text.slice(current.prefix.length).trim().split(/\s+/);
     const commandName = args[0]?.toLowerCase();
     if (!commandName) return;
 
@@ -81,7 +98,6 @@ async function messageHandler(sock, msg) {
       download: "📥", dl: "📥", tagall: "📢", everyone: "📢", groupinfo: "👥",
       ginfo: "👥", kick: "🛡️", remove: "🛡️", promote: "👑", demote: "⬇️", default: "⚡"
     };
-
     await react(sock, msg, commandEmoji[commandName] || commandEmoji.default);
 
     const hasPermission = msg.key.fromMe
@@ -102,11 +118,11 @@ async function messageHandler(sock, msg) {
 
       if (!command) {
         return sock.sendMessage(sender, {
-          text: "❌ Command \`" + commandName + "\` not found.\nType \`" + config.prefix + "menu\` for all commands."
+          text: "❌ Command \`" + commandName + "\` not found.\nType \`" + current.prefix + "menu\` for all commands."
         });
       }
 
-      await command.execute(sock, msg, args, {
+      await command.execute(sock, msg, args.slice(1), {
         sender, isGroup, senderNumber, text, args: args.slice(1)
       });
     } catch (error) {
