@@ -100,27 +100,55 @@ async function startWhatsApp() {
 
     let version;
     try {
-      // Utiliser l'helper officiel de Baileys qui lit directement la révision
-      // attendue par WhatsApp Web. C'est plus fiable qu'un parsing manuel de sw.js.
-      const latest = await fetchLatestWaWebVersion();
-      if (!latest?.version) throw new Error("Version WhatsApp Web introuvable");
-      version = latest.version;
-      console.log("🌐 WhatsApp Web version live: " + version.join(".") + (latest.isLatest === false ? " (non signalée comme latest)" : ""));
-    } catch (liveVersionError) {
+      // Certains environnements cloud peuvent faire échouer l'helper interne
+      // de Baileys. On lit donc directement sw.js avec les mêmes en-têtes
+      // minimaux utilisés par Baileys pour obtenir la révision réellement
+      // attendue par WhatsApp.
+      const controller = new AbortController();
+      const timeout = setTimeout(() => controller.abort(), 15000);
       try {
-        const latest = await fetchLatestBaileysVersion();
+        const response = await fetch("https://web.whatsapp.com/sw.js", {
+          method: "GET",
+          headers: {
+            "sec-fetch-site": "none",
+            "user-agent": "Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/131.0.0.0 Safari/537.36"
+          },
+          signal: controller.signal
+        });
+        if (!response.ok) throw new Error("WhatsApp Web sw.js HTTP " + response.status);
+        const data = await response.text();
+        const match = data.match(/\\?"client_revision\\?":\\s*(\\d+)/);
+        if (!match?.[1]) throw new Error("client_revision introuvable dans sw.js");
+        version = [2, 3000, Number(match[1])];
+        console.log("🌐 WhatsApp Web version live: " + version.join("."));
+      } finally {
+        clearTimeout(timeout);
+      }
+    } catch (liveVersionError) {
+      console.log("⚠️ Lecture directe de sw.js impossible: " + liveVersionError.message);
+      try {
+        const latest = await fetchLatestWaWebVersion();
         if (latest?.version) {
           version = latest.version;
-          console.log("⚠️ Version live indisponible, fallback Baileys: " + version.join("."));
+          console.log("🌐 Version Baileys live helper: " + version.join("."));
         }
-      } catch (fallbackError) {
-        console.log("⚠️ Version WhatsApp non récupérée: " + liveVersionError.message);
+      } catch (helperError) {
+        try {
+          const latest = await fetchLatestBaileysVersion();
+          if (latest?.version) {
+            version = latest.version;
+            console.log("⚠️ Version fallback Baileys: " + version.join("."));
+          }
+        } catch (fallbackError) {
+          console.log("⚠️ Aucune version WhatsApp Web récupérée.");
+        }
       }
     }
 
     const socketOptions = {
       auth: state,
-      browser: Browsers.ubuntu("Chrome"),
+      // WEB_BROWSER correspond au profil Chrome Web attendu pour l'appairage.
+      browser: Browsers.macOS("Chrome"),
       logger,
       syncFullHistory: false,
       markOnlineOnConnect: true
