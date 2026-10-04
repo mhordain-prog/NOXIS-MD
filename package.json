@@ -19,7 +19,7 @@
   "author": "Hordain Madila",
   "license": "MIT",
   "dependencies": {
-    "@whiskeysockets/baileys": "^6.7.7",
+    "@whiskeysockets/baileys": "6.7.24",
     "node-telegram-bot-api": "^0.66.0",
     "pino": "^9.0.0",
     "dotenv": "^16.4.5",
