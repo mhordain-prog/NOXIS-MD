@@ -1,11 +1,13 @@
+const fs = require('fs');
+const os = require('os');
+const path = require('path');
 const axios = require('axios');
 const yts = require('yt-search');
+const youtubeDl = require('youtube-dl-exec');
 
 async function searchYouTube(query) {
   const result = await yts(query);
-  const videos = (result.videos || []).slice(0, 5);
-
-  return videos.map((video) => ({
+  return (result.videos || []).slice(0, 5).map((video) => ({
     title: video.title || 'Sans titre',
     url: video.url,
     duration: video.timestamp || video.duration?.timestamp || 'Inconnue',
@@ -13,10 +15,31 @@ async function searchYouTube(query) {
   }));
 }
 
+async function downloadYouTubeAudio(url) {
+  const output = path.join(os.tmpdir(), 'noxis-audio-' + Date.now() + '.%(ext)s');
+
+  await youtubeDl(url, {
+    extractAudio: true,
+    audioFormat: 'mp3',
+    audioQuality: '5',
+    output,
+    noPlaylist: true,
+    noWarnings: true,
+    quiet: true
+  });
+
+  const files = fs.readdirSync(os.tmpdir())
+    .filter((file) => file.startsWith(path.basename(output).split('.%(ext)s')[0]))
+    .map((file) => path.join(os.tmpdir(), file));
+
+  if (!files.length) throw new Error('Fichier audio introuvable après téléchargement.');
+  return files[0];
+}
+
 module.exports = {
   name: 'play',
   aliases: ['song'],
-  description: 'Rechercher un titre ou une vidéo sur YouTube',
+  description: 'Rechercher sur YouTube et télécharger un son autorisé',
 
   async execute(sock, msg, args) {
     const jid = msg.key.remoteJid;
@@ -24,73 +47,37 @@ module.exports = {
 
     if (!input) {
       return sock.sendMessage(jid, {
-        text: '⚠️ Utilisation : .play titre\nExemple : .play Fally Ipupa'
+        text: '⚠️ Utilisation : .play <titre>\nExemple : .play Fally Ipupa'
       });
     }
 
-    // Une URL directe reste prise en charge pour les médias directs.
-    if (/^https?:\/\//i.test(input)) {
-      try {
-        const response = await axios.get(input, {
-          responseType: 'arraybuffer',
-          maxContentLength: 50 * 1024 * 1024,
-          maxBodyLength: 50 * 1024 * 1024,
-          timeout: 30000
-        });
-
-        const type = String(response.headers['content-type'] || 'application/octet-stream')
-          .split(';')[0]
-          .toLowerCase();
-        const buffer = Buffer.from(response.data);
-
-        if (type.startsWith('audio/')) {
-          return sock.sendMessage(jid, { audio: buffer, mimetype: type });
-        }
-        if (type.startsWith('video/')) {
-          return sock.sendMessage(jid, { video: buffer, mimetype: type });
-        }
-        if (type.startsWith('image/')) {
-          return sock.sendMessage(jid, { image: buffer, mimetype: type });
-        }
-
-        return sock.sendMessage(jid, {
-          document: buffer,
-          mimetype: type,
-          fileName: 'download'
-        });
-      } catch (error) {
-        return sock.sendMessage(jid, {
-          text: '❌ Téléchargement impossible : ' + error.message
-        });
-      }
-    }
-
     try {
-      const videos = await searchYouTube(input);
+      const url = /^https?:\\/\\//i.test(input)
+        ? input
+        : (await searchYouTube(input))[0]?.url;
 
-      if (!videos.length) {
+      if (!url) {
         return sock.sendMessage(jid, {
           text: '🔎 Aucun résultat YouTube trouvé pour : ' + input
         });
       }
 
-      const lines = videos.map((video, index) =>
-        (index + 1) + '. ' + video.title +
-        '\n   👤 ' + video.author +
-        '\n   ⏱️ ' + video.duration +
-        '\n   🔗 ' + video.url
-      );
+      const audioPath = await downloadYouTubeAudio(url);
+      const audio = fs.readFileSync(audioPath);
 
-      return sock.sendMessage(jid, {
-        text:
-          '🎵 *NOXIS-MD — Recherche YouTube*\n\n' +
-          '🔎 ' + input + '\n\n' +
-          lines.join('\n\n')
+      await sock.sendMessage(jid, {
+        audio,
+        mimetype: 'audio/mpeg',
+        fileName: path.basename(audioPath).replace(/\\.[^.]+$/, '.mp3'),
+        ptt: false
       });
+
+      try { fs.unlinkSync(audioPath); } catch {}
     } catch (error) {
-      console.error('YouTube search error:', error);
+      console.error('YouTube audio error:', error);
       return sock.sendMessage(jid, {
-        text: '❌ Recherche YouTube impossible : ' + error.message
+        text: '❌ Impossible de télécharger ce son. Utilise cette commande uniquement pour des contenus que tu as le droit de télécharger.\\n\\n' +
+          'Détail : ' + (error.message || 'erreur inconnue')
       });
     }
   }
