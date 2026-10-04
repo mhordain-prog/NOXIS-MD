@@ -1,0 +1,78 @@
+module.exports = {
+  name: "kick",
+  aliases: ["remove"],
+  description: "Retirer un membre du groupe",
+
+  async execute(sock, msg, args) {
+    const jid = msg.key.remoteJid;
+
+    if (!jid?.endsWith("@g.us")) {
+      return sock.sendMessage(jid, {
+        text: "❌ Cette commande fonctionne uniquement dans un groupe."
+      });
+    }
+
+    const sender = msg.key.participant || msg.key.remoteJid;
+    const metadata = await sock.groupMetadata(jid);
+
+    const senderMember = metadata.participants.find(
+      p => p.id === sender
+    );
+
+    if (!senderMember?.admin) {
+      return sock.sendMessage(jid, {
+        text: "❌ Tu dois être administrateur."
+      });
+    }
+
+    const botNumber = sock.user.id.split(":")[0];
+
+    const botMember = metadata.participants.find(
+      p => p.id.startsWith(botNumber)
+    );
+
+    if (!botMember?.admin) {
+      return sock.sendMessage(jid, {
+        text: "❌ Je dois être administrateur."
+      });
+    }
+
+    const mentioned =
+      msg.message?.extendedTextMessage?.contextInfo?.mentionedJid || [];
+
+    let target = mentioned[0];
+
+    if (!target && args[0]) {
+      const number = args[0].replace(/\D/g, "");
+      if (number) {
+        target = `${number}@s.whatsapp.net`;
+      }
+    }
+
+    if (!target) {
+      return sock.sendMessage(jid, {
+        text: "⚠️ Mentionne le membre.\nExemple : .kick @membre"
+      });
+    }
+
+    const targetMember = metadata.participants.find(
+      p => p.id === target
+    );
+
+    if (targetMember?.admin) {
+      return sock.sendMessage(jid, {
+        text: "❌ Impossible de retirer un administrateur."
+      });
+    }
+
+    await sock.groupParticipantsUpdate(
+      jid,
+      [target],
+      "remove"
+    );
+
+    await sock.sendMessage(jid, {
+      text: "✅ Membre retiré."
+    });
+  }
+};
