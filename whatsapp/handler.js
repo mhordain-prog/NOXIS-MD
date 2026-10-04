@@ -1,7 +1,7 @@
 const config = require("../config");
 const commandLoader = require("../lib/commandLoader");
 const permissionMiddleware = require("../lib/permissionMiddleware");
-const activityTracker = require("../lib/activityTracker");
+const activityTracker = require("../lib/activityTracker");\nconst antispam = require("../lib/antispam");
 const groupProtection = require("../lib/groupProtection");
 const settings = require("../lib/settingsStore");
 const fs = require("fs-extra");
@@ -93,6 +93,32 @@ async function messageHandler(sock, msg) {
       await activityTracker.record(sender, senderNumber);
       const blocked = await groupProtection.protectMessage(sock, msg, text);
       if (blocked) return;
+
+      if (current.antispam) {
+        const meta = await sock.groupMetadata(sender);
+        const member = meta.participants.find(p => p.id === senderNumber);
+        const isAdmin = !!member?.admin;
+
+        if (!isAdmin) {
+          const count = antispam.check(sender, senderNumber);
+
+          if (count > 5) {
+            try {
+              const botId = sock.user?.id?.split(":")[0] + "@s.whatsapp.net";
+              const botMember = meta.participants.find(p => p.id === botId);
+
+              if (botMember?.admin) {
+                await sock.sendMessage(sender, { delete: msg.key });
+              }
+            } catch (error) {
+              console.error("Antispam delete error:", error.message);
+            }
+            return;
+          }
+        } else {
+          antispam.clear(sender, senderNumber);
+        }
+      }
     }
 
     if (config.maintenance && senderNumber !== config.owner) {
