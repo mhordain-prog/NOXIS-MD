@@ -1,38 +1,74 @@
 const startTelegramBot = require("./telegram/bot");
-const { startWhatsApp, getSocket } = require("./whatsapp/connection");
+const { startWhatsApp, getSocket, getLatestQR } = require("./whatsapp/connection");
 const config = require("./config");
 const express = require("express");
 const fs = require("fs-extra");
-const path = require("path");
-const { getLatestQR } = require("./whatsapp/connection");
 
-// Ensure required directories exist
 const requiredDirs = [
   config.sessionsPath,
   config.dbPath,
   config.logsPath
 ];
 
-requiredDirs.forEach(dir => {
-  fs.ensureDirSync(dir);
-});
+requiredDirs.forEach((dir) => fs.ensureDirSync(dir));
 
 const app = express();
 
 app.get("/", (req, res) => {
-  res.send("<h1>NOXIS-MD</h1><p>WhatsApp bot is running.</p><p><a href=\"/qr\">Open WhatsApp QR</a></p>");
+  res.status(200).send(
+    "<h1>NOXIS-MD</h1><p>WhatsApp bot is running.</p><p><a href=\"/qr\">Open WhatsApp QR</a></p>"
+  );
 });
 
-app.get("/health", (req, res) => res.json({ ok: true, whatsapp: !!getSocket() }));
+app.get("/health", (req, res) => {
+  res.status(200).json({
+    ok: true,
+    whatsapp: !!getSocket(),
+    qrAvailable: !!getLatestQR().image
+  });
+});
 
 app.get("/qr", (req, res) => {
   const { image } = getLatestQR();
-  if (!image) return res.status(404).send("<h2>QR non disponible</h2><p>Le bot est déjà connecté ou le QR n’a pas encore été généré. Recharge cette page dans quelques secondes.</p>");
-  res.send(`<!doctype html><html><head><meta name="viewport" content="width=device-width,initial-scale=1"><meta http-equiv="refresh" content="5"></head><body style="font-family:sans-serif;text-align:center;padding:20px"><h2>📱 Connecter NOXIS-MD</h2><p>WhatsApp → Appareils connectés → Connecter un appareil → scanne ce QR.</p><img src="${image}" width="320" height="320" alt="WhatsApp QR"><p>Le QR se rafraîchit automatiquement.</p></body></html>`);
+
+  if (!image) {
+    return res.status(200).send(
+      `<!doctype html>
+<html>
+<head>
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<meta http-equiv="refresh" content="3">
+<title>NOXIS-MD QR</title>
+</head>
+<body style="font-family:sans-serif;text-align:center;padding:30px">
+<h2>⏳ QR WhatsApp en préparation</h2>
+<p>Attends quelques secondes puis la page se rafraîchira automatiquement.</p>
+<p>Si le QR apparaît, scanne-le avec WhatsApp → Appareils connectés.</p>
+</body>
+</html>`
+    );
+  }
+
+  return res.status(200).send(
+    `<!doctype html>
+<html>
+<head>
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<meta http-equiv="refresh" content="20">
+<title>NOXIS-MD QR</title>
+</head>
+<body style="font-family:sans-serif;text-align:center;padding:20px">
+<h2>📱 Connecter NOXIS-MD</h2>
+<p>WhatsApp → Appareils connectés → Connecter un appareil → scanne ce QR.</p>
+<img src="${image}" width="320" height="320" alt="WhatsApp QR">
+<p>Le QR se rafraîchit automatiquement.</p>
+</body>
+</html>`
+  );
 });
 
-const server = app.listen(config.port, config.host, () => {
-  console.log(`🌐 Web server: http://${config.host}:${config.port}`);
+app.listen(Number(config.port), config.host, () => {
+  console.log(`🌐 Web server listening on ${config.host}:${config.port}`);
 });
 
 async function main() {
@@ -45,15 +81,17 @@ async function main() {
   console.log("━".repeat(36));
 
   try {
-    // Start WhatsApp Connection
     console.log("📱 Initializing WhatsApp connection...");
-    const waSocket = await startWhatsApp();
+    await startWhatsApp();
     console.log("✅ WhatsApp initialized");
-    
-    // Start Telegram Bot
-    console.log("📡 Starting Telegram bot...");
-    startTelegramBot();
-    console.log("✅ Telegram bot started");
+
+    if (config.telegramToken) {
+      console.log("📡 Starting Telegram bot...");
+      startTelegramBot();
+      console.log("✅ Telegram bot started");
+    } else {
+      console.log("ℹ️ TELEGRAM_TOKEN absent : Telegram désactivé.");
+    }
 
     console.log("━".repeat(36));
     console.log("🟢 BOT IS ONLINE");
@@ -65,14 +103,11 @@ async function main() {
     console.log("");
     console.log("Use .menu to see all available commands");
     console.log("");
-
   } catch (error) {
     console.error("❌ Error starting bot:", error);
-    process.exit(1);
   }
 }
 
-// Handle graceful shutdown
 process.on("SIGINT", () => {
   console.log("\n\n⛔ Bot shutting down gracefully...");
   process.exit(0);
