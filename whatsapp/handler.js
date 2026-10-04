@@ -2,6 +2,8 @@ const config = require("../config");
 const commandLoader = require("../lib/commandLoader");
 const permissionMiddleware = require("../lib/permissionMiddleware");
 
+let commandsLoaded = false;
+
 async function messageHandler(sock, msg) {
   try {
     // Allow commands sent from the connected WhatsApp account itself.
@@ -45,8 +47,13 @@ async function messageHandler(sock, msg) {
       });
     }
 
-    // Load and execute command
+    // Load commands once before executing the first command.
     try {
+      if (!commandsLoaded) {
+        await commandLoader.loadCommands();
+        commandsLoaded = true;
+      }
+
       const command = commandLoader.getCommand(commandName);
       
       if (!command) {
