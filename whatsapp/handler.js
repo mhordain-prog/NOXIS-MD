@@ -88,7 +88,10 @@ async function messageHandler(sock, msg) {
     const sender = msg.key.remoteJid;
     const isGroup = msg.key.remoteJid?.endsWith("@g.us");
     const senderNumber = msg.key.participant || sender;
-    const current = settings.get(isGroup ? sender : "global");
+    const baseSettings = settings.get(isGroup ? sender : "global");
+    const userScope = "user:" + String(senderNumber).replace(/[^0-9]/g, "");
+    const userSettings = settings.get(userScope);
+    const current = { ...baseSettings, mode: userSettings.mode || baseSettings.mode || "public" };
 
     if (isGroup && !msg.key.fromMe) {
       await activityTracker.record(sender, senderNumber);
@@ -120,6 +123,10 @@ async function messageHandler(sock, msg) {
           antispam.clear(sender, senderNumber);
         }
       }
+    }
+
+    if (current.mode === "private" && !msg.key.fromMe && !permissionMiddleware.isOwnerOrSudo(senderNumber)) {
+      return;
     }
 
     if (config.maintenance && senderNumber !== config.owner) {
