@@ -1,3 +1,6 @@
+const config = require("../../config");
+const commandLoader = require("../../lib/commandLoader");
+
 module.exports = {
   name: "menu",
   aliases: ["help", "cmd", "commands"],
@@ -6,52 +9,52 @@ module.exports = {
 
   async execute(sock, msg, args, context) {
     const { sender } = context;
-    
+    const commands = commandLoader.getCommands();
+    const totalCommands = commands.length;
+
     const menuText = `
 ╭──────────────────────────────╮
-│    🤖 SIMON TECH BOT 2.0     │
-│  ⚡ Online ⚡                │
+│       🤖 NOXIS-MD ${config.version}       │
+│         ⚡ ONLINE ⚡          │
 ╰──────────────────────────────╯
 
-├⊷ 👑 OWNER (50 COMMANDS)
-├⊷ ⚙️ SYSTEM (50 COMMANDS)
-��⊷ 👤 PROFILE (40 COMMANDS)
-├⊷ 👥 GROUP (80 COMMANDS)
-├⊷ 🔐 SECURITY (60 COMMANDS)
-├⊷ 🧠 AI (100 COMMANDS)
-├⊷ 📥 DOWNLOADER (80 COMMANDS)
-├⊷ 🖼️ MEDIA (60 COMMANDS)
-├⊷ 🎮 GAMES (80 COMMANDS)
-├⊷ 💰 ECONOMY (80 COMMANDS)
-├⊷ 🏦 BANK (40 COMMANDS)
-├⊷ 🎭 ANIME (40 COMMANDS)
-├⊷ 🔍 SEARCH (40 COMMANDS)
-├⊷ 🛠️ TOOLS (50 COMMANDS)
-├⊷ 🌐 INTERNET (30 COMMANDS)
-├⊷ 🎨 DESIGN (30 COMMANDS)
-├⊷ 📚 EDUCATION (30 COMMANDS)
-├⊷ ☁️ CLOUD (20 COMMANDS)
-├⊷ 🚀 DEVELOPER (20 COMMANDS)
+├⊷ 👑 OWNER
+├⊷ ⚙️ SYSTEM
+├⊷ 👤 PROFILE
+├⊷ 👥 GROUP
+├⊷ 🔐 SECURITY
+├⊷ 🧠 AI
+├⊷ 📥 DOWNLOADER
+├⊷ 🖼️ MEDIA
+├⊷ 🎮 GAMES
+├⊷ 💰 ECONOMY
+├⊷ 🏦 BANK
+├⊷ 🎭 ANIME
+├⊷ 🔍 SEARCH
+├⊷ 🛠️ TOOLS
+├⊷ 🌐 INTERNET
+├⊷ 🎨 DESIGN
+├⊷ 📚 EDUCATION
+├⊷ ☁️ CLOUD
+├⊷ 🚀 DEVELOPER
 
-├⊷ 📊 TOTAL COMMANDS: 800+
-├⊷ 🤖 BOT TYPE: Multi Device
-├⊷ ⚡ VERSION: 2.0.0
-├⊷ 👑 OWNER: SIMON TECH
+├⊷ 📊 COMMANDS CHARGÉES: ${totalCommands}
+├⊷ 🤖 BOT TYPE: MULTI DEVICE
+├⊷ ⚡ VERSION: ${config.version}
+├⊷ 👑 OWNER: HORDAIN MADILA
 ├⊷ 🚀 STATUS: ONLINE 🟢
 ╰━━━━━━━━━━━━━━━━━━━━━━━╯
 
-📝 Use these prefixes:
-.owner - Owner commands
-.system - System commands
-.profile - Profile commands
-.group - Group commands
-.ai - AI commands
-.game - Games
-.download - Downloaders
+📝 Préfixes disponibles:
+.owner - Commandes propriétaire
+.system - Commandes système
+.profile - Profil
+.group - Gestion du groupe
+.ai - Intelligence artificielle
+.game - Jeux
+.download - Téléchargements
 
-🔗 Telegram: @SimonTechBot2
-📱 WhatsApp: 09166265317
-👨‍💻 Developer: SIMON TECH
+🖤 NOXIS-MD — Simple. Rapide. Puissant.
 `;
 
     await sock.sendMessage(sender, { text: menuText });
