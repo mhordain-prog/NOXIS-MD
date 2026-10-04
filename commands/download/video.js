@@ -3,12 +3,14 @@ const play = require('./play');
 module.exports = {
   name: 'video',
   aliases: ['vid'],
-  description: 'Télécharger une vidéo depuis une URL directe',
+  description: 'Rechercher une vidéo ou envoyer une vidéo depuis une URL directe',
 
   async execute(sock, msg, args) {
-    const url = args[0];
-    if (!url || !/^https?:\/\//i.test(url)) {
-      return sock.sendMessage(msg.key.remoteJid, { text: '⚠️ Utilisation : .video https://exemple.com/video.mp4' });
+    const input = args.join(' ').trim();
+    if (!input) {
+      return sock.sendMessage(msg.key.remoteJid, {
+        text: '⚠️ Utilisation : .video titre ou .video https://exemple.com/video.mp4'
+      });
     }
     return play.execute(sock, msg, args);
   }
