@@ -1,0 +1,1 @@
+module.exports={name:"developer",aliases:["dev","debug"],category:"developer",description:"Informations techniques",async execute(sock,msg,args,c){await sock.sendMessage(c.sender,{text:"🚀 DEVELOPER\n\nNOXIS-MD\nNode.js\nBaileys Multi-Device\nRender\nGitHub"});}};
