@@ -5,7 +5,7 @@ module.exports = {
   name: "menu",
   aliases: ["help", "cmd", "commands"],
   category: "system",
-  description: "Affiche les commandes disponibles",
+  description: "Menu principal NOXIS-MD",
 
   async execute(sock, msg, args, context) {
     const { sender } = context;
@@ -13,54 +13,72 @@ module.exports = {
     const groups = {};
 
     for (const command of commands) {
-      const category = String(command.category || "tools").toUpperCase();
+      const category = String(command.category || "other").toLowerCase();
       if (!groups[category]) groups[category] = [];
       groups[category].push(command.name);
     }
 
-    const order = [
-      "OWNER","SYSTEM","PROFILE","GROUP","SECURITY","AI","DOWNLOADER",
-      "MEDIA","FUN","GAMES","ECONOMY","BANK","ANIME","SEARCH","TOOLS",
-      "INTERNET","DESIGN","EDUCATION","CLOUD","DEVELOPER"
-    ];
-
     const labels = {
-      OWNER:"👑 OWNER", SYSTEM:"⚙️ SYSTEM", PROFILE:"👤 PROFILE",
-      GROUP:"👥 GROUP", SECURITY:"🔐 SECURITY", AI:"🧠 AI",
-      DOWNLOADER:"📥 DOWNLOADER", MEDIA:"🖼️ MEDIA", FUN:"🎮 FUN",
-      GAMES:"🎮 GAMES", ECONOMY:"💰 ECONOMY", BANK:"🏦 BANK",
-      ANIME:"🎭 ANIME", SEARCH:"🔍 SEARCH", TOOLS:"🛠️ TOOLS",
-      INTERNET:"🌐 INTERNET", DESIGN:"🎨 DESIGN", EDUCATION:"📚 EDUCATION",
-      CLOUD:"☁️ CLOUD", DEVELOPER:"🚀 DEVELOPER"
+      tools: "🛠️ ᴛᴏᴏʟs",
+      ai: "🧠 ᴀɪ",
+      anime: "🎭 ᴀɴɪᴍᴇ",
+      media: "🖼️ ᴍᴇᴅɪᴀ",
+      owner: "👑 ᴏᴡɴᴇʀ",
+      admin: "🛡️ ᴀᴅᴍɪɴ",
+      group: "👥 ɢʀᴏᴜᴘ",
+      downloader: "📥 ᴅᴏᴡɴʟᴏᴀᴅ",
+      system: "⚙️ ᴍᴀɪɴ",
+      search: "🔎 sᴇᴀʀᴄʜ",
+      fun: "🎮 ғᴜɴ",
+      education: "📚 ᴇᴅᴜᴄᴀᴛɪᴏɴ",
+      security: "🔐 sᴇᴄᴜʀɪᴛʏ",
+      internet: "🌐 ɪɴᴛᴇʀɴᴇᴛ",
+      design: "🎨 ᴅᴇsɪɢɴ",
+      games: "🎮 ɢᴀᴍᴇs",
+      economy: "💰 ᴇᴄᴏɴᴏᴍʏ",
+      bank: "🏦 ʙᴀɴᴋ",
+      cloud: "☁️ ᴄʟᴏᴜᴅ",
+      developer: "🚀 ᴅᴇᴠᴇʟᴏᴘᴇʀ",
+      profile: "👤 ᴘʀᴏғɪʟᴇ",
+      other: "📦 ᴏᴛʜᴇʀ"
     };
 
-    let body = "";
-    for (const category of order) {
+    const preferred = [
+      "tools","ai","anime","media","owner","admin","group","downloader",
+      "system","search","fun","education","security","internet","design",
+      "games","economy","bank","cloud","developer","profile","other"
+    ];
+
+    let sections = "";
+
+    for (const category of preferred) {
       const list = groups[category];
-      if (list?.length) {
-        body += `\n├⊷ ${labels[category] || category}\n`;
-        body += list.sort().map(n => `│  • ${config.prefix}${n}`).join("\n") + "\n";
-      }
+      if (!list?.length) continue;
+
+      const unique = [...new Set(list)].sort();
+      sections +=
+        `━━━━━『 ${labels[category] || category.toUpperCase()} 』━━━━━\n◉\n` +
+        unique.map(name => `◉ ➤ ${name}`).join("\n") +
+        `\n◉\n┗━━━━━━━━━━━━━━\n`;
     }
 
-    for (const [category, list] of Object.entries(groups)) {
-      if (!order.includes(category) && list.length) {
-        body += `\n├⊷ ${category}\n`;
-        body += list.sort().map(n => `│  • ${config.prefix}${n}`).join("\n") + "\n";
-      }
-    }
+    const active = new Set(commands.map(c => c.name)).size;
+    const runtime = Math.floor(process.uptime());
+    const h = Math.floor(runtime / 3600);
+    const m = Math.floor((runtime % 3600) / 60);
+    const s = runtime % 60;
 
-    const unique = new Set(commands.map(c => c.name));
     const menuText =
-      `╭──────────────────────────────╮\n` +
-      `│       🤖 NOXIS-MD ${config.version}       │\n` +
-      `│         ⚡ ONLINE ⚡          │\n` +
-      `╰──────────────────────────────╯\n` +
-      body +
-      `\n├⊷ 📊 COMMANDES ACTIVES: ${unique.size}\n` +
-      `├⊷ 🤖 MULTI DEVICE\n` +
-      `├⊷ 🟢 STATUS: ONLINE\n` +
-      `╰━━━━━━━━━━━━━━━━━━━━━━━╯`;
+      `\n━━━━━━ 🤖 ʙᴏᴛ ɪɴғᴏ ━━━━━━\n` +
+      `◉ 🎉 ꧁༒☬ NOXIS ☬༒꧂\n` +
+      `◉ 👑 ᴏᴡɴᴇʀ: Hordain Madila\n` +
+      `◉ 📜 ᴄᴏᴍᴍᴀɴᴅs: ${active}\n` +
+      `◉ ⏱️ ʀᴜɴᴛɪᴍᴇ: ${h}h ${m}m ${s}s\n` +
+      `◉ 📦 ᴘʀᴇғɪx: ${config.prefix}\n` +
+      `◉ ⚙️ ᴍᴏᴅᴇ: ${config.botMode}\n` +
+      `◉ 🏷️ ᴠᴇʀsɪᴏɴ: ${config.version}\n\n` +
+      sections +
+      `\n> *© ꨄ 𝙉𝙊𝙓𝙄𝙎-𝙈𝘿 ꨄ*`;
 
     await sock.sendMessage(sender, { text: menuText });
   }
