@@ -6,7 +6,7 @@ module.exports = {
   name: "menu",
   aliases: ["help", "cmd", "commands"],
   category: "system",
-  description: "Menu principal classé par catégorie et utilité",
+  description: "Menu principal complet, classé par catégorie",
 
   async execute(sock, msg, args) {
     const jid = msg.key.remoteJid;
@@ -68,30 +68,62 @@ module.exports = {
       "design","developer","economy","bank","cloud","other"
     ];
 
-    let sections = "";
+    const sections = [];
     for (const category of order) {
       const list = groups[category];
       if (!list?.length) continue;
-      const names = [...new Set(list.map(c => c.name))].sort((a, b) => a.localeCompare(b));
-      sections += "\n╭━━━〔 " + (labels[category] || category.toUpperCase()) + " 〕━━━╮\n" +
+      const names = [...new Set(list.map(c => c.name))]
+        .sort((a, b) => a.localeCompare(b));
+
+      sections.push(
+        "╭━━━〔 " + (labels[category] || category.toUpperCase()) + " 〕━━━╮\n" +
         names.map((name, i) => (i + 1) + ". ." + name).join("\n") +
-        "\n╰━━━━━━━━━━━━━━━━━━━━╯\n";
+        "\n╰━━━━━━━━━━━━━━━━━━━━╯"
+      );
     }
 
     const runtime = Math.floor(process.uptime());
     const h = Math.floor(runtime / 3600);
     const m = Math.floor((runtime % 3600) / 60);
     const s = runtime % 60;
-    const currentSettings = settings.get("global");
+    const currentSettings = settings.get("global") || {};
+    const prefix = currentSettings.prefix || ".";
 
     const header =
-      "🤖 NOXIS-MD — MENU PRINCIPAL\n" +
+      "🤖 *NOXIS-MD — MENU PRINCIPAL*\n" +
       "👑 Owner : Hordain Madila\n" +
       "📦 Commandes actives : " + commands.length + "\n" +
       "⏱️ Uptime : " + h + "h " + m + "m " + s + "s\n" +
       "🏷️ Version : " + config.version + "\n" +
-      "⚙️ Préfixe : " + currentSettings.prefix + "\n\n";
+      "⚙️ Préfixe : " + prefix + "\n\n";
 
-    await sock.sendMessage(jid, { text: header + sections });
+    const MAX_CHARS = 4500;
+    const chunks = [];
+    let current = "";
+
+    for (const section of sections) {
+      const candidate = current ? current + "\n\n" + section : section;
+      if (candidate.length > MAX_CHARS && current) {
+        chunks.push(current);
+        current = section;
+      } else {
+        current = candidate;
+      }
+    }
+
+    if (current) chunks.push(current);
+
+    if (!chunks.length) {
+      return sock.sendMessage(jid, { text: header + "❌ Aucune commande chargée." });
+    }
+
+    for (let i = 0; i < chunks.length; i++) {
+      await sock.sendMessage(jid, {
+        text:
+          header +
+          "📚 *MENU COMPLET — PARTIE " + (i + 1) + "/" + chunks.length + "*\n\n" +
+          chunks[i]
+      });
+    }
   }
 };
