@@ -8,10 +8,13 @@ const pino = require("pino");
 const config = require("../config");
 const messageHandler = require("./handler");
 const fs = require("fs-extra");
+const QRCode = require("qrcode");
 
 let sock = null;
 let reconnectTimer = null;
 let starting = false;
+let latestQR = null;
+let latestQRImage = null;
 
 const logger = pino({ level: "silent" });
 
@@ -78,11 +81,20 @@ async function startWhatsApp() {
       const { connection, lastDisconnect, qr } = update;
 
       if (qr) {
-        console.log("📸 QR Code disponible : scanne-le avec WhatsApp.");
+        latestQR = qr;
+        latestQRImage = null;
+        try {
+          latestQRImage = await QRCode.toDataURL(qr, { margin: 2, width: 320 });
+          console.log("📸 QR Code disponible sur /qr.");
+        } catch (error) {
+          console.error("❌ Impossible de générer l’image du QR:", error.message);
+        }
       }
 
       if (connection === "open") {
         starting = false;
+        latestQR = null;
+        latestQRImage = null;
         console.log("✅ WhatsApp connecté avec succès.");
 
         if (sock?.user) {
@@ -160,4 +172,8 @@ function getSocket() {
   return sock;
 }
 
-module.exports = { startWhatsApp, getSocket };
+function getLatestQR() {
+  return { qr: latestQR, image: latestQRImage };
+}
+
+module.exports = { startWhatsApp, getSocket, getLatestQR };
