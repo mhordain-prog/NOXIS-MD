@@ -19,7 +19,8 @@ let sock = null;
 let reconnectTimer = null;
 let starting = false;
 let latestQR = null;
-let latestQRImage = null;\nlet authPool = null;
+let latestQRImage = null;
+let authPool = null;
 
 const logger = pino({ level: "silent" });
 
