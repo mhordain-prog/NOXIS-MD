@@ -3,6 +3,7 @@ const { startWhatsApp, getSocket, getLatestQR } = require("./whatsapp/connection
 const config = require("./config");
 const express = require("express");
 const fs = require("fs-extra");
+const settings = require("./lib/settingsStore");
 
 const requiredDirs = [config.sessionsPath, config.dbPath, config.logsPath];
 requiredDirs.forEach((dir) => fs.ensureDirSync(dir));
@@ -76,6 +77,8 @@ async function main() {
   console.log("━".repeat(36));
 
   try {
+    await settings.init();
+    console.log("⚙️ NOXIS settings initialized");
     console.log("📱 Initializing WhatsApp connection...");
     await startWhatsApp();
     console.log("✅ WhatsApp initialized");
@@ -103,8 +106,9 @@ async function main() {
   }
 }
 
-process.on("SIGINT", () => {
+process.on("SIGINT", async () => {
   console.log("\n\n⛔ Bot shutting down gracefully...");
+  try { await settings.close(); } catch {}
   process.exit(0);
 });
 
