@@ -240,6 +240,35 @@ async function startWhatsApp() {
       }
     });
 
+    async function sendMemberEventMessage(groupId, user, type, groupName, groupSettings) {
+      const isWelcome = type === "welcome";
+      const template = isWelcome ? groupSettings.welcomeText : groupSettings.goodbyeText;
+      const caption = renderTemplate(template, user, groupName);
+
+      try {
+        const photoUrl = await sock.profilePictureUrl(user, "image");
+        if (photoUrl) {
+          const response = await require("axios").get(photoUrl, {
+            responseType: "arraybuffer",
+            timeout: 10000,
+            maxContentLength: 5 * 1024 * 1024
+          });
+          return sock.sendMessage(groupId, {
+            image: Buffer.from(response.data),
+            caption,
+            mentions: [user]
+          });
+        }
+      } catch (photoError) {
+        console.log("⚠️ Photo de profil indisponible pour " + user + ": " + photoError.message);
+      }
+
+      return sock.sendMessage(groupId, {
+        text: caption,
+        mentions: [user]
+      });
+    }
+
     sock.ev.on("group-participants.update", async ({ id, participants, action }) => {
       try {
         const groupSettings = settings.get(id);
@@ -250,19 +279,13 @@ async function startWhatsApp() {
 
         if (action === "add" && groupSettings.welcome) {
           for (const user of participants || []) {
-            await sock.sendMessage(id, {
-              text: renderTemplate(groupSettings.welcomeText, user, groupName),
-              mentions: [user]
-            });
+            await sendMemberEventMessage(id, user, "welcome", groupName, groupSettings);
           }
         }
 
         if ((action === "remove" || action === "leave") && groupSettings.goodbye) {
           for (const user of participants || []) {
-            await sock.sendMessage(id, {
-              text: renderTemplate(groupSettings.goodbyeText, user, groupName),
-              mentions: [user]
-            });
+            await sendMemberEventMessage(id, user, "goodbye", groupName, groupSettings);
           }
         }
       } catch (error) {
