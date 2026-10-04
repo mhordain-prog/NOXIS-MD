@@ -94,7 +94,6 @@ async function startWhatsApp() {
 
     const socketOptions = {
       auth: state,
-      printQRInTerminal: true,
       browser: Browsers.ubuntu("NOXIS-MD"),
       logger,
       syncFullHistory: false,
