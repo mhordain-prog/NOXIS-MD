@@ -6,64 +6,47 @@ module.exports = {
 
   async execute(sock, msg, args, context) {
     const { sender, args: cmdArgs } = context;
-    
-    if (cmdArgs.length > 0) {
-      // Help for specific command
-      const helpText = `
-📖 *Help for command:* ${cmdArgs[0]}
 
-ℹ️ *Command Information:*
-Command: ${cmdArgs[0]}
-Status: Available ✅
-Usage: .${cmdArgs[0]} [options]
+    if (cmdArgs.length > 0) {
+      const helpText = `
+📖 *Aide pour la commande :* ${cmdArgs[0]}
+
+ℹ️ *Informations :*
+Commande: ${cmdArgs[0]}
+Statut: Disponible ✅
+Utilisation: .${cmdArgs[0]} [options]
 
 📝 Description:
-This command provides functionality for the bot.
+Cette commande fournit les fonctionnalités disponibles dans NOXIS-MD.
 
-⚠️ *Note:*
-For detailed information about specific commands, check .menu
+⚠️ Pour plus d'informations, utilise .menu
 `;
       await sock.sendMessage(sender, { text: helpText });
     } else {
-      // General help
       const generalHelp = `
 ╭──────────────────────────╮
-│    📖 HELP CENTER        │
+│      📖 NOXIS-MD AIDE    │
 ╰──────────────────────────╯
 
-🎯 *Quick Start:*
-.menu - View all commands
-.ping - Check bot status
-.owner - Owner commands
-.system - System info
+🎯 *Démarrage rapide :*
+.menu - Voir le menu
+.ping - Vérifier le statut
+.owner - Informations du propriétaire
 
-📚 *Categories:*
-.owner <category> - Owner commands
-.system <category> - System commands
-.profile <category> - Profile features
-.group <category> - Group management
-.ai <category> - AI features
-.download <category> - Downloaders
-.game <category> - Games
-.economy <category> - Economy system
-.bank <category> - Banking system
+📚 *Catégories :*
+.owner <category> - Commandes propriétaire
+.system <category> - Commandes système
+.profile <category> - Profil
+.group <category> - Gestion du groupe
+.ai <category> - Intelligence artificielle
+.download <category> - Téléchargements
+.game <category> - Jeux
+.economy <category> - Économie
+.bank <category> - Banque
 
-🔧 *Common Commands:*
-.ping - Ping bot
-.alive - Check if alive
-.status - Bot status
-.uptime - Bot uptime
-.info - Bot information
-.owner - Owner panel
-.support - Get support
-
-❓ *Need Help?*
-Type .menu for full command list
-Contact: 09166265317
-Telegram: @SimonTechBot2
-
-💡 *Tip:*
-Use .help <command> for specific help
+❓ *Besoin d'aide ?*
+Utilise .menu pour la liste complète.
+Utilise .help <commande> pour une aide précise.
 `;
       await sock.sendMessage(sender, { text: generalHelp });
     }
