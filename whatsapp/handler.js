@@ -32,13 +32,7 @@ function reactionFor(text) {
   return null;
 }
 
-async function maybeReact(sock, msg, text) {
-  if (!config.autoReact || msg.key.fromMe) return;
-  if (!text || text.startsWith(config.prefix)) return;
-
-  const emoji = reactionFor(text);
-  if (!emoji) return;
-
+async function react(sock, msg, emoji) {
   try {
     await sock.sendMessage(msg.key.remoteJid, {
       react: { text: emoji, key: msg.key }
@@ -46,6 +40,13 @@ async function maybeReact(sock, msg, text) {
   } catch (error) {
     console.error("Reaction error:", error.message);
   }
+}
+
+async function maybeReact(sock, msg, text) {
+  if (!config.autoReact || msg.key.fromMe) return;
+  if (!text || text.startsWith(config.prefix)) return;
+  const emoji = reactionFor(text);
+  if (emoji) await react(sock, msg, emoji);
 }
 
 async function messageHandler(sock, msg) {
@@ -70,6 +71,30 @@ async function messageHandler(sock, msg) {
     const args = text.slice(config.prefix.length).trim().split(/\s+/);
     const commandName = args[0]?.toLowerCase();
     if (!commandName) return;
+
+    // React to every valid command, e.g. .menu, .ping, .play, etc.
+    // This happens before execution so the user immediately sees the bot acknowledge it.
+    const commandEmoji = {
+      menu: "📋",
+      help: "📋",
+      ping: "🏓",
+      play: "▶️",
+      ask: "🧠",
+      ai: "🧠",
+      download: "📥",
+      dl: "📥",
+      tagall: "📢",
+      everyone: "📢",
+      groupinfo: "👥",
+      ginfo: "👥",
+      kick: "🛡️",
+      remove: "🛡️",
+      promote: "👑",
+      demote: "⬇️",
+      default: "⚡"
+    };
+
+    await react(sock, msg, commandEmoji[commandName] || commandEmoji.default);
 
     const hasPermission = msg.key.fromMe
       ? true
