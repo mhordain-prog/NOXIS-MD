@@ -10,6 +10,10 @@ const config = require("../config");
 const messageHandler = require("./handler");
 const fs = require("fs-extra");
 const QRCode = require("qrcode");
+const {
+  useMongoDBAuthState,
+  clearMongoDBAuthState
+} = require("./mongoAuth");
 
 let sock = null;
 let reconnectTimer = null;
@@ -24,11 +28,23 @@ async function startWhatsApp() {
   starting = true;
 
   try {
-    fs.ensureDirSync(config.sessionsPath);
+    let state;
+    let saveCreds;
+    const useMongo = !!process.env.MONGODB_URI;
 
-    const { state, saveCreds } = await useMultiFileAuthState(
-      config.sessionsPath
-    );
+    if (useMongo) {
+      ({ state, saveCreds } = await useMongoDBAuthState(
+        process.env.MONGODB_URI,
+        process.env.MONGODB_DB || "noxis"
+      ));
+    } else {
+      fs.ensureDirSync(config.sessionsPath);
+      ({ state, saveCreds } = await useMultiFileAuthState(
+        config.sessionsPath
+      ));
+      console.log("💾 WhatsApp session storage: local filesystem");
+      console.log("⚠️ MONGODB_URI absent: Render may lose the session after restart.");
+    }
 
     let version;
     try {
@@ -53,7 +69,6 @@ async function startWhatsApp() {
     if (version) socketOptions.version = version;
 
     sock = makeWASocket(socketOptions);
-
     sock.ev.on("creds.update", saveCreds);
 
     sock.ev.on("connection.update", async (update) => {
@@ -69,10 +84,7 @@ async function startWhatsApp() {
           console.log("📸 QR Code disponible sur /qr.");
         } catch (error) {
           latestQRImage = null;
-          console.error(
-            "❌ Impossible de générer l’image du QR:",
-            error.message
-          );
+          console.error("❌ Impossible de générer l’image du QR:", error.message);
         }
       }
 
@@ -100,25 +112,24 @@ async function startWhatsApp() {
         console.log(
           `⚠️ Connexion WhatsApp fermée (code: ${statusCode ?? "inconnu"}).`
         );
-        if (error?.message) {
-          console.log(`ℹ️ Motif: ${error.message}`);
-        }
+        if (error?.message) console.log(`ℹ️ Motif: ${error.message}`);
 
         sock = null;
 
         if (statusCode === DisconnectReason.loggedOut) {
-          console.log(
-            "❌ Session WhatsApp invalide. Nettoyage de la session locale pour permettre un nouveau QR..."
-          );
+          console.log("❌ Session WhatsApp invalide. Nettoyage de la session...");
+
           try {
-            await fs.emptyDir(config.sessionsPath);
-            console.log("🧹 Session locale nettoyée.");
+            if (useMongo) {
+              await clearMongoDBAuthState();
+            } else {
+              await fs.emptyDir(config.sessionsPath);
+            }
+            console.log("🧹 Session nettoyée.");
           } catch (cleanupError) {
-            console.error(
-              "❌ Impossible de nettoyer la session:",
-              cleanupError.message
-            );
+            console.error("❌ Impossible de nettoyer la session:", cleanupError.message);
           }
+
           latestQR = null;
           latestQRImage = null;
         }
