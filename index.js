@@ -4,12 +4,7 @@ const config = require("./config");
 const express = require("express");
 const fs = require("fs-extra");
 
-const requiredDirs = [
-  config.sessionsPath,
-  config.dbPath,
-  config.logsPath
-];
-
+const requiredDirs = [config.sessionsPath, config.dbPath, config.logsPath];
 requiredDirs.forEach((dir) => fs.ensureDirSync(dir));
 
 const app = express();
@@ -73,7 +68,7 @@ app.listen(Number(config.port), config.host, () => {
 
 async function main() {
   console.log("╔════════════════════════════════════╗");
-  console.log("║   🤖 SIMON TECH BOT v" + config.version + "       ║");
+  console.log("║       🤖 NOXIS-MD v" + config.version + "       ║");
   console.log("║  WhatsApp Multi-Device Bot         ║");
   console.log("╚════════════════════════════════════╝");
   console.log("");
@@ -94,7 +89,7 @@ async function main() {
     }
 
     console.log("━".repeat(36));
-    console.log("🟢 BOT IS ONLINE");
+    console.log("🟢 NOXIS-MD IS ONLINE");
     console.log("");
     console.log(`📊 Bot Name: ${config.botName}`);
     console.log(`👑 Owner: ${config.owner}`);
