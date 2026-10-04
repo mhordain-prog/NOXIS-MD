@@ -4,8 +4,8 @@ const permissionMiddleware = require("../lib/permissionMiddleware");
 
 async function messageHandler(sock, msg) {
   try {
-    // Ignore messages from bot itself
-    if (msg.key.fromMe) return;
+    // Allow commands sent from the connected WhatsApp account itself.
+    // The owner uses the same account as the bot, so self-messages must be processed.
 
     // Get message content
     const text = msg.message?.conversation ||
