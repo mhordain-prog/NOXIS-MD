@@ -31,6 +31,7 @@ let latestQR = null;
 let latestQRImage = null;
 let authPool = null;
 let shuttingDown = false;
+let credsSavePromise = Promise.resolve();
 
 // Petit cache runtime utilisé par anti-edit/anti-delete.
 const messageCache = new Map();
@@ -116,7 +117,11 @@ async function startWhatsApp() {
     if (version) socketOptions.version = version;
 
     sock = makeWASocket(socketOptions);
-    sock.ev.on("creds.update", saveCreds);
+    sock.ev.on("creds.update", () => {
+      credsSavePromise = saveCreds().catch((error) => {
+        console.error("❌ Impossible de sauvegarder la session WhatsApp:", error.message);
+      });
+    });
 
     sock.ev.on("connection.update", async (update) => {
       const { connection, lastDisconnect, qr } = update;
@@ -191,13 +196,24 @@ async function startWhatsApp() {
         }
 
         if (reconnectTimer) return;
-        console.log("🔄 Nouvelle tentative dans 5 secondes...");
+
+        // 515 (restartRequired) arrive normalement juste après un scan QR.
+        // Il faut réutiliser les identifiants fraîchement sauvegardés,
+        // sans délai et surtout sans effacer la session.
+        const restartDelay = statusCode === DisconnectReason.restartRequired ? 0 : 5000;
+        if (statusCode === DisconnectReason.restartRequired) {
+          console.log("🔁 515 détecté après appairage : sauvegarde de la session puis reconnexion immédiate.");
+          try { await credsSavePromise; } catch {}
+        } else {
+          console.log("🔄 Nouvelle tentative dans 5 secondes...");
+        }
+
         reconnectTimer = setTimeout(() => {
           reconnectTimer = null;
           startWhatsApp().catch((restartError) => {
             console.error("WhatsApp restart error:", restartError.message);
           });
-        }, 5000);
+        }, restartDelay);
       }
     });
 
