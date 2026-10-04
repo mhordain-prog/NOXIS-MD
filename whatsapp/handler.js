@@ -4,6 +4,8 @@ const permissionMiddleware = require("../lib/permissionMiddleware");
 const activityTracker = require("../lib/activityTracker");
 const groupProtection = require("../lib/groupProtection");
 const settings = require("../lib/settingsStore");
+const fs = require("fs-extra");
+const path = require("path");
 
 let commandsLoaded = false;
 
@@ -57,6 +59,23 @@ async function applyPresence(sock, jid, current) {
     }
   } catch (error) {
     console.error("Presence error:", error.message);
+  }
+}
+
+function isSettingsPrivileged(senderNumber) {
+  try {
+    const s = settings.get("global");
+    const owner = String(s.ownernumber || config.owner || "").replace(/\\D/g, "");
+    const sender = String(senderNumber || "").split(":")[0].replace(/\\D/g, "");
+    if (owner && sender === owner) return true;
+
+    const file = path.join(__dirname, "../data/access.json");
+    const access = fs.readJsonSync(file);
+    return (access.sudo || []).some(jid =>
+      String(jid).split("@")[0].replace(/\\D/g, "") === sender
+    );
+  } catch {
+    return false;
   }
 }
 
