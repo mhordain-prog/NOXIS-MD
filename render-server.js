@@ -20,7 +20,12 @@ const server = http.createServer((req, res) => {
   if (path === "/health") {
     const { image } = getLatestQR();
     res.writeHead(200, { "Content-Type": "application/json" });
-    res.end(JSON.stringify({ ok: true, whatsapp: !!getSocket(), qrAvailable: !!image }));
+    res.end(JSON.stringify({
+      ok: true,
+      whatsapp: !!getSocket(),
+      qrAvailable: !!image,
+      whatsappEnabled: process.env.WHATSAPP_ENABLED !== "false"
+    }));
     return;
   }
 
@@ -32,6 +37,10 @@ server.listen(port, "0.0.0.0", () => {
   console.log("🌐 NOXIS-MD web server on port " + port);
 });
 
-startWhatsApp().catch((error) => {
-  console.error("❌ WhatsApp startup error:", error);
-});
+if (process.env.WHATSAPP_ENABLED !== "false") {
+  startWhatsApp().catch((error) => {
+    console.error("❌ WhatsApp startup error:", error);
+  });
+} else {
+  console.log("⏸️ WhatsApp disabled on this Render service (WHATSAPP_ENABLED=false).");
+}
