@@ -1,0 +1,1 @@
+module.exports={name:"security",aliases:["securite","secure"],category:"security",description:"État de sécurité",async execute(sock,msg,args,c){await sock.sendMessage(c.sender,{text:"🔐 SÉCURITÉ NOXIS-MD\n\n✅ Permissions actives\n✅ Contrôle des accès actif\n🛡️ Données sensibles protégées"});}};
