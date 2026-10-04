@@ -20,7 +20,8 @@ app.get("/health", (req, res) => {
   res.status(200).json({
     ok: true,
     whatsapp: !!getSocket(),
-    qrAvailable: !!getLatestQR().image
+    qrAvailable: !!getLatestQR().image,
+    whatsappEnabled: process.env.WHATSAPP_ENABLED !== "false"
   });
 });
 
@@ -79,9 +80,14 @@ async function main() {
   try {
     await settings.init();
     console.log("⚙️ NOXIS settings initialized");
+    const whatsappEnabled = process.env.WHATSAPP_ENABLED !== "false";
     console.log("📱 Initializing WhatsApp connection...");
-    await startWhatsApp();
-    console.log("✅ WhatsApp initialized");
+    if (whatsappEnabled) {
+      await startWhatsApp();
+      console.log("✅ WhatsApp initialized");
+    } else {
+      console.log("⏸️ WhatsApp disabled on this Render service (WHATSAPP_ENABLED=false).");
+    }
 
     if (config.telegramToken) {
       console.log("📡 Starting Telegram bot...");
