@@ -33,13 +33,6 @@ This is a public WhatsApp bot.
   bot.sendMessage(msg.chat.id, welcomeText, { parse_mode: "Markdown" });
 });
 
-⚠️ This bot is public and available for everyone.
-`;
-
-I should put it like this
-
-⚠️ This bot is public — everyone can use available features.
-
     bot.sendMessage(msg.chat.id, welcomeText, { parse_mode: "Markdown" });
   });
 
