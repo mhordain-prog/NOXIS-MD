@@ -1,5 +1,6 @@
 const express = require("express");
 const { startWhatsApp, getLatestQR, getSocket, isWhatsAppRegistered, requestWhatsAppPairingCode } = require("./whatsapp/connection");
+const { selectRoundRobin, checkAllServers, getStatus: getServerStatus } = require("./lib/serverSelector");
 
 const port = Number(process.env.PORT || 3000);
 const app = express();
