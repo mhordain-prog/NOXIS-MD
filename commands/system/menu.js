@@ -10,8 +10,7 @@ module.exports = {
   async execute(sock, msg, args, context) {
     const { sender } = context;
     const commands = commandLoader.getCommands();
-    const totalCommands = commands.length;
-
+    const names = commands.map(c => c.name).filter(Boolean);
     const menuText = `
 ╭──────────────────────────────╮
 │       🤖 NOXIS-MD ${config.version}       │
@@ -38,25 +37,18 @@ module.exports = {
 ├⊷ ☁️ CLOUD
 ├⊷ 🚀 DEVELOPER
 
-├⊷ 📊 COMMANDS CHARGÉES: ${totalCommands}
+├⊷ 📊 COMMANDES ACTIVES: ${names.length}
 ├⊷ 🤖 BOT TYPE: MULTI DEVICE
 ├⊷ ⚡ VERSION: ${config.version}
 ├⊷ 👑 OWNER: HORDAIN MADILA
 ├⊷ 🚀 STATUS: ONLINE 🟢
 ╰━━━━━━━━━━━━━━━━━━━━━━━╯
 
-📝 Préfixes disponibles:
-.owner - Commandes propriétaire
-.system - Commandes système
-.profile - Profil
-.group - Gestion du groupe
-.ai - Intelligence artificielle
-.game - Jeux
-.download - Téléchargements
+📝 COMMANDES PRINCIPALES:
+${names.map(n => config.prefix + n).join(" • ")}
 
 🖤 NOXIS-MD — Simple. Rapide. Puissant.
 `;
-
     await sock.sendMessage(sender, { text: menuText });
   }
 };
