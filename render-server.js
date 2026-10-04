@@ -17,7 +17,7 @@ app.get("/", (req, res) => {
 body{font-family:Arial,sans-serif;background:#0b0b0f;color:#fff;display:flex;justify-content:center;align-items:center;min-height:100vh;margin:0;padding:20px;box-sizing:border-box}
 .card{max-width:430px;width:100%;background:#15151c;border:1px solid #2b2b35;border-radius:18px;padding:24px;box-sizing:border-box;text-align:center}
 h1{margin-top:0}.muted{color:#aaa;line-height:1.5}input,button{width:100%;padding:14px;border-radius:10px;box-sizing:border-box;font-size:16px}input{background:#0d0d12;color:#fff;border:1px solid #3a3a45;margin:12px 0}button{border:0;cursor:pointer;background:#fff;color:#111;font-weight:700}button:disabled{opacity:.5;cursor:not-allowed}
-#result{margin-top:18px;min-height:28px}.code{font-size:30px;letter-spacing:5px;font-weight:800;margin:14px 0}.note{font-size:13px;color:#999;margin-top:14px}
+#result{margin-top:18px;min-height:28px}.code{font-size:30px;letter-spacing:5px;font-weight:800;margin:14px 0}.copy{margin-top:8px;background:#2a2a35;color:#fff;border:1px solid #41414d}.note{font-size:13px;color:#999;margin-top:14px}
 a{color:#fff}
 </style></head>
 <body><main class="card">
@@ -30,6 +30,17 @@ a{color:#fff}
 <p class="note">Le code est destiné à l'appairage WhatsApp de cette instance NOXIS-MD. Ne partage jamais un code reçu par SMS ou ton PIN WhatsApp.</p>
 </main>
 <script>
+async function copyCode(code){
+ try{
+  await navigator.clipboard.writeText(code);
+ }catch(e){
+  const ta=document.createElement('textarea');
+  ta.value=code; document.body.appendChild(ta); ta.select();
+  document.execCommand('copy'); ta.remove();
+ }
+ const btn=document.getElementById('copyBtn');
+ if(btn){ btn.textContent='✅ Code copié !'; setTimeout(()=>btn.textContent='📋 Copier le code',1800); }
+}
 async function pair(){
  const btn=document.getElementById('btn'), phone=document.getElementById('phone').value.trim(), out=document.getElementById('result');
  btn.disabled=true; out.textContent='⏳ Génération du code…';
@@ -37,7 +48,8 @@ async function pair(){
   const r=await fetch('/api/pairing-code',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({phone})});
   const data=await r.json();
   if(!r.ok) throw new Error(data.error||'Impossible de générer le code.');
-  out.innerHTML='<div>Voici ton code d’appairage :</div><div class="code">'+data.code+'</div><div>Dans WhatsApp : Appareils connectés → Connecter un appareil → Connecter avec un numéro de téléphone.</div>';
+  const safeCode=String(data.code).replace(/'/g,"\\'");
+  out.innerHTML='<div>Voici ton code d’appairage :</div><div class="code">'+data.code+'</div><button id="copyBtn" class="copy" onclick="copyCode(\''+safeCode+'\')">📋 Copier le code</button><div style="margin-top:12px">Dans WhatsApp : Appareils connectés → Connecter un appareil → Connecter avec un numéro de téléphone.</div>';
  }catch(e){out.textContent='❌ '+e.message;}
  finally{btn.disabled=false;}
 }
@@ -70,59 +82,26 @@ app.post("/api/pairing-code", async (req, res) => {
 });
 
 app.get("/servers/status", (req, res) => {
-  res.status(200).json({
-    ok: true,
-    strategy: "round-robin",
-    serverId: process.env.NOXIS_SERVER_ID || "primary",
-    servers: getServerStatus()
-  });
+  res.status(200).json({ ok: true, strategy: "round-robin", serverId: process.env.NOXIS_SERVER_ID || "primary", servers: getServerStatus() });
 });
-
 app.get("/servers", (req, res) => {
   const selected = selectRoundRobin();
-  res.status(200).json({
-    ok: true,
-    strategy: "round-robin",
-    selectedServer: selected ? selected.id : null,
-    servers: getServerStatus()
-  });
+  res.status(200).json({ ok: true, strategy: "round-robin", selectedServer: selected ? selected.id : null, servers: getServerStatus() });
 });
-
 app.post("/servers/select", (req, res) => {
   const selected = selectRoundRobin();
-  if (!selected) {
-    return res.status(503).json({ ok: false, error: "Aucun serveur configuré." });
-  }
+  if (!selected) return res.status(503).json({ ok: false, error: "Aucun serveur configuré." });
   return res.json({ ok: true, strategy: "round-robin", selectedServer: selected.id });
 });
-
 app.get("/health", (req, res) => {
   const { image } = getLatestQR();
-  res.status(200).json({
-    ok: true,
-    whatsapp: !!getSocket(),
-    whatsappRegistered: isWhatsAppRegistered(),
-    qrAvailable: !!image,
-    pairingPage: true,
-    pairingCodeActive: Date.now() < pairingCodeVisibleUntil,
-    whatsappEnabled: process.env.WHATSAPP_ENABLED !== "false"
-  });
+  res.status(200).json({ ok: true, whatsapp: !!getSocket(), whatsappRegistered: isWhatsAppRegistered(), qrAvailable: !!image, pairingPage: true, pairingCodeActive: Date.now() < pairingCodeVisibleUntil, whatsappEnabled: process.env.WHATSAPP_ENABLED !== "false" });
 });
 
 const healthIntervalMs = Math.max(10000, Number(process.env.SERVER_HEALTHCHECK_INTERVAL_MS || 30000));
-setTimeout(() => {
-  checkAllServers().catch((error) => console.error("❌ Round-robin health check error:", error));
-}, 2000);
-setInterval(() => {
-  checkAllServers().catch((error) => console.error("❌ Round-robin health check error:", error));
-}, healthIntervalMs);
+setTimeout(() => { checkAllServers().catch((error) => console.error("❌ Round-robin health check error:", error)); }, 2000);
+setInterval(() => { checkAllServers().catch((error) => console.error("❌ Round-robin health check error:", error)); }, healthIntervalMs);
 
-app.listen(port, "0.0.0.0", () => {
-  console.log("🌐 NOXIS-MD web server on port " + port);
-});
-
-if (process.env.WHATSAPP_ENABLED !== "false") {
-  startWhatsApp().catch((error) => console.error("❌ WhatsApp startup error:", error));
-} else {
-  console.log("⏸️ WhatsApp disabled on this Render service (WHATSAPP_ENABLED=false).");
-}
+app.listen(port, "0.0.0.0", () => console.log("🌐 NOXIS-MD web server on port " + port));
+if (process.env.WHATSAPP_ENABLED !== "false") startWhatsApp().catch((error) => console.error("❌ WhatsApp startup error:", error));
+else console.log("⏸️ WhatsApp disabled on this Render service (WHATSAPP_ENABLED=false).");
