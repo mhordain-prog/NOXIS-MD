@@ -1,6 +1,7 @@
 const express = require("express");
 const { startWhatsApp, getLatestQR, getSocket, isWhatsAppRegistered, requestWhatsAppPairingCode } = require("./whatsapp/connection");
-const { selectRoundRobin, checkAllServers, getStatus: getServerStatus } = require("./lib/serverSelector");
+const { selectRoundRobin, selectById, getSelectedServer, checkAllServers, getStatus: getServerStatus } = require("./lib/serverSelector");
+const { getConfigPreview: getReferralConfig } = require("./lib/referralStore");
 
 const port = Number(process.env.PORT || 3000);
 const app = express();
@@ -32,18 +33,18 @@ footer{text-align:center;color:#666773;margin-top:45px;font-size:13px}
 <p>Un espace simple pour découvrir le bot, suivre ton parrainage et connecter ton instance WhatsApp. Design original inspiré des interfaces modernes de bots, sans copier une identité propriétaire.</p>
 <div class="actions">
 <a class="btn" href="/qr">📷 Code QR WhatsApp</a>
-<a class="btn alt" href="#parrainage">🤝 Parrainage</a>
+<a class="btn alt" href="#parrainage">🤝 Parrainage</a><a class="btn alt" href="#serveurs">🛰️ Serveurs</a>
 </div>
 ${ref ? '<div class="ref">🎟️ <b>Invitation détectée</b><div class="small">Code reçu depuis le lien de parrainage :</div><code>'+ref+'</code><div class="small">Tu peux utiliser ce code avec la commande .parrainage '+ref+'</div></div>' : ''}
 </section>
 <section class="grid">
 <div class="card wide"><h3>🤖 Un bot complet</h3><p>Gestion de groupes, outils, IA, anime, médias, jeux, recherche et commandes système réunis dans une seule interface.</p></div>
 <div class="card"><h3>🔒 Mode privé</h3><p>Cette instance est configurée en mode privé pour limiter l'utilisation aux personnes autorisées.</p></div>
-<div class="card" id="parrainage"><h3>🤝 Parrainage</h3><p>Chaque utilisateur peut disposer d'un code de parrainage et consulter son classement avec les commandes dédiées.</p></div>
-<div class="card"><h3>📱 Connexion</h3><p>Utilise le QR ou l'appairage prévu par NOXIS-MD. Ne saisis jamais ton PIN ou un code reçu par SMS sur ce site.</p></div>
+<div class="card" id="parrainage"><h3>🤝 Parrainage</h3><p>Session <b id="refSession">chargement…</b> • plage <b id="refRange">chargement…</b></p><div class="small">Exemples : <span id="refSamples">—</span></div></div>
+<div class="card" id="serveurs"><h3>🛰️ Sélection du serveur</h3><p>Choisis le serveur cible de l’interface. La sélection ne partage jamais la session WhatsApp entre serveurs.</p><select id="serverSelect" style="margin-top:12px;width:100%;padding:12px;border-radius:10px;background:#0b0b10;color:#fff;border:1px solid #363741"><option>Chargement…</option></select><button id="serverBtn" class="btn alt" style="margin-top:10px;width:100%;cursor:pointer">Sélectionner</button><div id="serverMsg" class="small" style="margin-top:8px"></div></div><div class="card"><h3>📱 Connexion</h3><p>Utilise le QR ou l'appairage prévu par NOXIS-MD. Ne saisis jamais ton PIN ou un code reçu par SMS sur ce site.</p></div>
 </section>
 <footer>NOXIS-MD • Hordain Madila • Interface web officielle de cette instance</footer>
-</main></body></html>`);
+</main><script>(async()=>{try{const r=await fetch("/api/referral/config");const d=await r.json();document.getElementById("refSession").textContent=d.session;document.getElementById("refRange").textContent=d.prefix+" "+d.start+" → "+d.end;document.getElementById("refSamples").textContent=d.sampleCodes.join(" • ")}catch(e){document.getElementById("refSession").textContent="indisponible"}try{const r=await fetch("/servers/status");const d=await r.json();const s=document.getElementById("serverSelect");s.innerHTML="";d.servers.filter(x=>x.enabled).forEach(x=>{const o=document.createElement("option");o.value=x.id;o.textContent=x.id.toUpperCase()+" — "+(x.healthy?"en ligne":"indisponible");s.appendChild(o)});if(d.selectedServer)s.value=d.selectedServer;document.getElementById("serverBtn").onclick=async()=>{const rr=await fetch("/servers/select",{method:"POST",headers:{"content-type":"application/json"},body:JSON.stringify({serverId:s.value})});const j=await rr.json();document.getElementById("serverMsg").textContent=j.ok?"✅ Serveur sélectionné : "+j.selectedServer:"❌ "+(j.error||"Sélection impossible")}}catch(e){document.getElementById("serverMsg").textContent="Serveurs indisponibles"}})();</script></body></html>`);
 });
 
 app.get("/qr", (req, res) => {
@@ -71,16 +72,20 @@ app.post("/api/pairing-code", async (req, res) => {
   }
 });
 
+app.get("/api/referral/config", (req, res) => res.json({ ok: true, ...getReferralConfig() }));
+
 app.get("/servers/status", (req, res) => {
-  res.status(200).json({ ok: true, strategy: "round-robin", serverId: process.env.NOXIS_SERVER_ID || "primary", servers: getServerStatus() });
+  const selected = getSelectedServer();
+  res.status(200).json({ ok: true, strategy: "round-robin", serverId: process.env.NOXIS_SERVER_ID || "primary", selectedServer: selected ? selected.id : null, servers: getServerStatus() });
 });
 app.get("/servers", (req, res) => {
   const selected = selectRoundRobin();
   res.status(200).json({ ok: true, strategy: "round-robin", selectedServer: selected ? selected.id : null, servers: getServerStatus() });
 });
 app.post("/servers/select", (req, res) => {
-  const selected = selectRoundRobin();
-  if (!selected) return res.status(503).json({ ok: false, error: "Aucun serveur configuré." });
+  const requested = String(req.body?.serverId || "").trim();
+  const selected = requested ? selectById(requested) : selectRoundRobin();
+  if (!selected) return res.status(503).json({ ok: false, error: "Serveur indisponible ou non configuré." });
   return res.json({ ok: true, strategy: "round-robin", selectedServer: selected.id });
 });
 app.get("/health", (req, res) => {
