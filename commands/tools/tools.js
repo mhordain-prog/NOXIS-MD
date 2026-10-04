@@ -1,0 +1,1 @@
+module.exports={name:"tools",aliases:["outil"],category:"tools",description:"Outils",async execute(sock,msg,args,c){await sock.sendMessage(c.sender,{text:"🛠️ OUTILS\n\n.menu\n.help\n.ping\n.profile\n.search\n.anime\n.internet"});}};
