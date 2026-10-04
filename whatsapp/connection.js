@@ -10,52 +10,73 @@ const messageHandler = require("./handler");
 const fs = require("fs-extra");
 
 let sock = null;
+let reconnectTimer = null;
+let starting = false;
+
 const logger = pino({ level: "silent" });
 
 async function startWhatsApp() {
+  if (starting) return sock;
+  starting = true;
+
   try {
-    // Ensure sessions directory exists
     fs.ensureDirSync(config.sessionsPath);
 
-    const { state, saveCreds } = await useMultiFileAuthState(config.sessionsPath);
+    const { state, saveCreds } = await useMultiFileAuthState(
+      config.sessionsPath
+    );
 
     sock = makeWASocket({
       auth: state,
       printQRInTerminal: true,
-      browser: Browsers.ubuntu("Chrome"),
-      logger: logger,
+      browser: Browsers.ubuntu("NOXIS-MD"),
+      logger,
       syncFullHistory: false
     });
 
-    // Save credentials on update
     sock.ev.on("creds.update", saveCreds);
 
-    // Connection updates
     sock.ev.on("connection.update", async (update) => {
-      const { connection, lastDisconnect } = update;
+      const { connection, lastDisconnect, qr } = update;
 
-      if (connection === "close") {
-        const shouldReconnect =
-          lastDisconnect?.error?.output?.statusCode !== DisconnectReason.loggedOut;
-
-        if (shouldReconnect) {
-          console.log("🔄 Reconnecting to WhatsApp...");
-          setTimeout(() => startWhatsApp(), 5000);
-        } else {
-          console.log("❌ WhatsApp logged out");
-        }
-      } else if (connection === "open") {
-        console.log("✅ WhatsApp connected successfully");
-        const profile = await sock.user;
-        console.log(`📱 Connected as: ${profile.name}`);
+      if (qr) {
+        console.log("📸 QR Code disponible : scanne-le avec WhatsApp.");
       }
 
-      if (update.qr) {
-        console.log("📸 Scan QR Code to connect WhatsApp");
+      if (connection === "open") {
+        starting = false;
+        console.log("✅ WhatsApp connecté avec succès.");
+
+        if (sock?.user) {
+          console.log(`📱 Connecté comme : ${sock.user.name || sock.user.id}`);
+        }
+        return;
+      }
+
+      if (connection === "close") {
+        starting = false;
+
+        const statusCode = lastDisconnect?.error?.output?.statusCode;
+        console.log(`⚠️ Connexion WhatsApp fermée (code: ${statusCode ?? "inconnu"}).`);
+
+        if (statusCode === DisconnectReason.loggedOut) {
+          console.log("❌ Session WhatsApp déconnectée. Nouvelle association nécessaire.");
+          sock = null;
+          return;
+        }
+
+        if (reconnectTimer) return;
+
+        console.log("🔄 Nouvelle tentative dans 5 secondes...");
+        reconnectTimer = setTimeout(() => {
+          reconnectTimer = null;
+          startWhatsApp().catch((error) => {
+            console.error("WhatsApp restart error:", error);
+          });
+        }, 5000);
       }
     });
 
-    // Handle incoming messages
     sock.ev.on("messages.upsert", async (m) => {
       if (m.type === "notify") {
         for (const msg of m.messages) {
@@ -68,19 +89,27 @@ async function startWhatsApp() {
       }
     });
 
-    // Handle group updates
     sock.ev.on("groups.update", (updates) => {
       console.log("📢 Group update received:", updates);
     });
 
-    // Handle status updates
-    sock.ev.on("presence.update", (updates) => {
-      // Presence updates
-    });
+    sock.ev.on("presence.update", () => {});
 
+    starting = false;
     return sock;
   } catch (error) {
-    console.error("WhatsApp connection error:", error);
+    starting = false;
+    console.error("❌ WhatsApp connection error:", error);
+
+    if (!reconnectTimer) {
+      reconnectTimer = setTimeout(() => {
+        reconnectTimer = null;
+        startWhatsApp().catch((err) => {
+          console.error("WhatsApp restart error:", err);
+        });
+      }, 5000);
+    }
+
     throw error;
   }
 }
