@@ -11,15 +11,15 @@ const messageHandler = require("./handler");
 const fs = require("fs-extra");
 const QRCode = require("qrcode");
 const {
-  useMongoDBAuthState,
-  clearMongoDBAuthState
-} = require("./mongoAuth");
+  usePostgresAuthState,
+  clearPostgresAuthState
+} = require("./postgresAuth");
 
 let sock = null;
 let reconnectTimer = null;
 let starting = false;
 let latestQR = null;
-let latestQRImage = null;
+let latestQRImage = null;\nlet authPool = null;
 
 const logger = pino({ level: "silent" });
 
@@ -30,12 +30,11 @@ async function startWhatsApp() {
   try {
     let state;
     let saveCreds;
-    const useMongo = !!process.env.MONGODB_URI;
+    const usePostgres = !!process.env.DATABASE_URL;
 
-    if (useMongo) {
-      ({ state, saveCreds } = await useMongoDBAuthState(
-        process.env.MONGODB_URI,
-        process.env.MONGODB_DB || "noxis"
+    if (usePostgres) {
+      ({ state, saveCreds, pool: authPool } = await usePostgresAuthState(
+        process.env.DATABASE_URL
       ));
     } else {
       fs.ensureDirSync(config.sessionsPath);
@@ -43,7 +42,7 @@ async function startWhatsApp() {
         config.sessionsPath
       ));
       console.log("💾 WhatsApp session storage: local filesystem");
-      console.log("⚠️ MONGODB_URI absent: Render may lose the session after restart.");
+      console.log("⚠️ DATABASE_URL absent: Render may lose the session after restart.");
     }
 
     let version;
@@ -120,8 +119,9 @@ async function startWhatsApp() {
           console.log("❌ Session WhatsApp invalide. Nettoyage de la session...");
 
           try {
-            if (useMongo) {
-              await clearMongoDBAuthState();
+            if (usePostgres) {
+              await clearPostgresAuthState(authPool);
+              authPool = null;
             } else {
               await fs.emptyDir(config.sessionsPath);
             }
