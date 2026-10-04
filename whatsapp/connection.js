@@ -32,6 +32,8 @@ let latestQRImage = null;
 let authPool = null;
 let shuttingDown = false;
 let credsSavePromise = Promise.resolve();
+let whatsappRegistered = false;
+let pairingRequestInProgress = false;
 
 // Petit cache runtime utilisé par anti-edit/anti-delete.
 const messageCache = new Map();
@@ -116,6 +118,7 @@ async function startWhatsApp() {
 
     if (version) socketOptions.version = version;
 
+    whatsappRegistered = !!state.creds?.registered;
     sock = makeWASocket(socketOptions);
     sock.ev.on("creds.update", () => {
       credsSavePromise = saveCreds().catch((error) => {
@@ -139,6 +142,7 @@ async function startWhatsApp() {
 
       if (connection === "open") {
         starting = false;
+        whatsappRegistered = true;
         latestQR = null;
         latestQRImage = null;
 
@@ -191,6 +195,7 @@ async function startWhatsApp() {
           } catch (cleanupError) {
             console.error("❌ Impossible de nettoyer la session:", cleanupError.message);
           }
+          whatsappRegistered = false;
           latestQR = null;
           latestQRImage = null;
         }
@@ -385,7 +390,40 @@ function getLatestQR() {
   return { qr: latestQR, image: latestQRImage };
 }
 
-module.exports = { startWhatsApp, getSocket, getLatestQR };
+function isWhatsAppRegistered() {
+  return whatsappRegistered;
+}
+
+async function requestWhatsAppPairingCode(phoneNumber) {
+  if (!sock) throw new Error("La connexion WhatsApp n'est pas encore prête.");
+  if (whatsappRegistered) throw new Error("NOXIS-MD est déjà connecté. Déconnecte d'abord le compte actuel.");
+  if (pairingRequestInProgress) throw new Error("Un code d'appairage est déjà en cours.");
+  
+  const normalized = String(phoneNumber || "").replace(/\D/g, "");
+  if (!/^\d{8,15}$/.test(normalized)) {
+    throw new Error("Numéro invalide. Utilise le numéro international, chiffres uniquement (exemple : 24206XXXXXXX).");
+  }
+
+  pairingRequestInProgress = true;
+  try {
+    // Laisser le socket initialiser sa connexion avant de demander le code.
+    await new Promise((resolve) => setTimeout(resolve, 1500));
+    if (!sock) throw new Error("La connexion WhatsApp a été interrompue.");
+    if (whatsappRegistered) throw new Error("Le compte WhatsApp vient d'être connecté entre-temps.");
+    const code = await sock.requestPairingCode(normalized);
+    return String(code || "").replace(/(.{4})/g, "$1-").replace(/-$/, "");
+  } finally {
+    pairingRequestInProgress = false;
+  }
+}
+
+module.exports = {
+  startWhatsApp,
+  getSocket,
+  getLatestQR,
+  isWhatsAppRegistered,
+  requestWhatsAppPairingCode
+};
 
 
 async function shutdownWhatsApp(signal) {
