@@ -75,6 +75,18 @@ async function startWhatsApp() {
       ({ state, saveCreds, pool: authPool } = await usePostgresAuthState(
         process.env.DATABASE_URL
       ));
+
+      // Réinitialisation ponctuelle demandée explicitement via Render.
+      // Le marqueur est retiré par l'environnement après le redémarrage.
+      if (process.env.WHATSAPP_RESET_SESSION === "true") {
+        console.log("🧹 Réinitialisation explicite de la session WhatsApp demandée.");
+        await clearPostgresAuthState(authPool);
+        authPool = null;
+        ({ state, saveCreds, pool: authPool } = await usePostgresAuthState(
+          process.env.DATABASE_URL
+        ));
+        console.log("📱 Session réinitialisée : un nouveau QR peut être généré.");
+      }
     } else {
       fs.ensureDirSync(config.sessionsPath);
       ({ state, saveCreds } = await useMultiFileAuthState(config.sessionsPath));
