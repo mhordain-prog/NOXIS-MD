@@ -5,7 +5,7 @@ const send = (sock, to, text) => sock.sendMessage(to, { text });
 module.exports = [
   {
     name: "helpme",
-    aliases: ["help", "aide"],
+    aliases: ["aide", "studyhelp"],
     category: "education",
     description: "Aide rapide sur les commandes",
     async execute(sock, msg, args, ctx) {
@@ -42,9 +42,7 @@ module.exports = [
         "m:ft": 3.28084,
         "ft:m": 0.3048,
         "kg:lb": 2.20462262,
-        "lb:kg": 0.45359237,
-        "c:f": null,
-        "f:c": null
+        "lb:kg": 0.45359237
       };
       const key = from + ":" + to;
       let result;
