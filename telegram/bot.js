@@ -33,8 +33,6 @@ This is a public WhatsApp bot.
   bot.sendMessage(msg.chat.id, welcomeText, { parse_mode: "Markdown" });
 });
 
-    bot.sendMessage(msg.chat.id, welcomeText, { parse_mode: "Markdown" });
-  });
 
   // Help command
   bot.onText(/\/help/, (msg) => {
