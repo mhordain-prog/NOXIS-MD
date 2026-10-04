@@ -23,7 +23,7 @@ body:before{content:"";position:fixed;inset:0;background:radial-gradient(circle 
 .actions{display:flex;gap:12px;justify-content:center;flex-wrap:wrap;margin:28px 0}.btn{display:inline-block;text-decoration:none;padding:14px 20px;border-radius:12px;font-weight:800;border:1px solid #363741;color:#fff;background:#fff;color:#09090c}.btn.alt{background:#15151c;color:#fff}
 .grid{display:grid;grid-template-columns:repeat(3,1fr);gap:14px;margin-top:38px}.card{background:rgba(18,18,25,.9);border:1px solid #292a34;border-radius:18px;padding:22px}.card h3{margin:0 0 8px}.card p{color:#999aa5;line-height:1.55;margin:0}.wide{grid-column:span 2}.ref{margin-top:14px;padding:18px;border-radius:16px;background:#101017;border:1px solid #292a34}.ref code{display:block;margin-top:8px;color:#fff;font-size:17px;word-break:break-all}.small{font-size:13px;color:#858691}
 footer{text-align:center;color:#666773;margin-top:45px;font-size:13px}
-@media(max-width:720px){.grid{grid-template-columns:1fr}.wide{grid-column:auto}.hero h1{letter-spacing:-2px}}
+.connect{margin-top:38px;background:rgba(18,18,25,.96);border:1px solid #292a34;border-radius:18px;padding:22px}.formgrid{display:grid;grid-template-columns:1fr 1fr;gap:12px}.input,.select{width:100%;padding:13px 14px;border-radius:11px;background:#0b0b10;color:#fff;border:1px solid #363741;outline:none}.connect .btn{cursor:pointer}.status{margin-top:12px;color:#b7b7c2;line-height:1.5}.codebox{margin-top:12px;padding:16px;border-radius:12px;background:#0b0b10;border:1px dashed #454653;text-align:center}.bigcode{font-size:28px;font-weight:900;letter-spacing:4px}.refbox{margin-top:12px;padding:14px;border-radius:12px;background:#101017;border:1px solid #292a34}.refcode{font-size:22px;font-weight:900;letter-spacing:2px}.small{font-size:13px;color:#858691}@media(max-width:720px){.formgrid{grid-template-columns:1fr}.hero h1{letter-spacing:-2px}}
 </style></head>
 <body><main class="wrap">
 <nav class="nav"><div class="brand">NOXIS<span>-MD</span></div><div class="pill">WhatsApp • Bot</div></nav>
@@ -32,19 +32,30 @@ footer{text-align:center;color:#666773;margin-top:45px;font-size:13px}
 <h1>NOXIS-MD</h1>
 <p>Un espace simple pour découvrir le bot, suivre ton parrainage et connecter ton instance WhatsApp. Design original inspiré des interfaces modernes de bots, sans copier une identité propriétaire.</p>
 <div class="actions">
-<a class="btn" href="/qr">📷 Code QR WhatsApp</a>
+<a class="btn" href="#connexion">📱 Connecter mon numéro</a>
 <a class="btn alt" href="#parrainage">🤝 Parrainage</a><a class="btn alt" href="#serveurs">🛰️ Serveurs</a>
 </div>
 ${ref ? '<div class="ref">🎟️ <b>Invitation détectée</b><div class="small">Code reçu depuis le lien de parrainage :</div><code>'+ref+'</code><div class="small">Tu peux utiliser ce code avec la commande .parrainage '+ref+'</div></div>' : ''}
 </section>
 <section class="grid">
 <div class="card wide"><h3>🤖 Un bot complet</h3><p>Gestion de groupes, outils, IA, anime, médias, jeux, recherche et commandes système réunis dans une seule interface.</p></div>
-<div class="card"><h3>🔒 Mode privé</h3><p>Cette instance est configurée en mode privé pour limiter l'utilisation aux personnes autorisées.</p></div>
+<div class="card"><h3>🔓 Public par défaut</h3><p>Tout le monde peut utiliser NOXIS-MD. Chaque utilisateur peut choisir son propre mode public ou privé avec <b>.mode</b>.</p></div>
 <div class="card" id="parrainage"><h3>🤝 Parrainage</h3><p>Session <b id="refSession">chargement…</b> • plage <b id="refRange">chargement…</b></p><div class="small">Exemples : <span id="refSamples">—</span></div></div>
-<div class="card" id="serveurs"><h3>🛰️ Sélection du serveur</h3><p>Choisis le serveur cible de l’interface. La sélection ne partage jamais la session WhatsApp entre serveurs.</p><select id="serverSelect" style="margin-top:12px;width:100%;padding:12px;border-radius:10px;background:#0b0b10;color:#fff;border:1px solid #363741"><option>Chargement…</option></select><button id="serverBtn" class="btn alt" style="margin-top:10px;width:100%;cursor:pointer">Sélectionner</button><div id="serverMsg" class="small" style="margin-top:8px"></div></div><div class="card"><h3>📱 Connexion</h3><p>Utilise le QR ou l'appairage prévu par NOXIS-MD. Ne saisis jamais ton PIN ou un code reçu par SMS sur ce site.</p></div>
+<div class="card" id="serveurs"><h3>🛰️ Sélection du serveur</h3><p>Choisis le serveur cible de l’interface. La sélection ne partage jamais la session WhatsApp entre serveurs.</p><select id="serverSelect" style="margin-top:12px;width:100%;padding:12px;border-radius:10px;background:#0b0b10;color:#fff;border:1px solid #363741"><option>Chargement…</option></select><button id="serverBtn" class="btn alt" style="margin-top:10px;width:100%;cursor:pointer">Sélectionner</button><div id="serverMsg" class="small" style="margin-top:8px"></div></div><div class="card"><h3>📱 Connexion</h3><p>Connecte ton propre numéro avec un code d'appairage WhatsApp. Le site ne demande jamais ton PIN, mot de passe ou code SMS.</p></div>
+</section>
+<section class="connect" id="connexion">
+<h2>📱 Connecter ton numéro WhatsApp</h2>
+<p class="small">Entre ton propre numéro au format international, puis demande le code d'appairage. Ne partage jamais un code de vérification reçu par SMS.</p>
+<div class="formgrid">
+<input id="phone" class="input" inputmode="tel" autocomplete="tel" placeholder="Ex. 24206XXXXXXX">
+<select id="connectServer" class="select"><option value="">Serveur : chargement…</option></select>
+</div>
+<div class="actions" style="margin-bottom:0"><button id="pairBtn" class="btn" type="button">🔐 Obtenir le code d'appairage</button><a class="btn alt" href="/qr">📷 Utiliser le QR</a></div>
+<div id="pairMsg" class="status"></div><div id="pairCode" class="codebox" hidden></div>
+<div id="myRef" class="refbox" hidden><div class="small">Ton code de parrainage</div><div id="myRefCode" class="refcode"></div><div class="small">Partage-le avec tes amis. Ton code reste associé à ton numéro.</div></div>
 </section>
 <footer>NOXIS-MD • Hordain Madila • Interface web officielle de cette instance</footer>
-</main><script>(async()=>{try{const r=await fetch("/api/referral/config");const d=await r.json();document.getElementById("refSession").textContent=d.session;document.getElementById("refRange").textContent=d.prefix+" "+d.start+" → "+d.end;document.getElementById("refSamples").textContent=d.sampleCodes.join(" • ")}catch(e){document.getElementById("refSession").textContent="indisponible"}try{const r=await fetch("/servers/status");const d=await r.json();const s=document.getElementById("serverSelect");s.innerHTML="";d.servers.filter(x=>x.enabled).forEach(x=>{const o=document.createElement("option");o.value=x.id;o.textContent=x.id.toUpperCase()+" — "+(x.healthy?"en ligne":"indisponible");s.appendChild(o)});if(d.selectedServer)s.value=d.selectedServer;document.getElementById("serverBtn").onclick=async()=>{const rr=await fetch("/servers/select",{method:"POST",headers:{"content-type":"application/json"},body:JSON.stringify({serverId:s.value})});const j=await rr.json();document.getElementById("serverMsg").textContent=j.ok?"✅ Serveur sélectionné : "+j.selectedServer:"❌ "+(j.error||"Sélection impossible")}}catch(e){document.getElementById("serverMsg").textContent="Serveurs indisponibles"}})();</script></body></html>`);
+</main><script>(async()=>{const $=id=>document.getElementById(id);try{const r=await fetch("/api/referral/config");const d=await r.json();$("refSession").textContent=d.session;$("refRange").textContent=d.prefix+" "+d.start+" → "+d.end;$("refSamples").textContent=d.sampleCodes.join(" • ")}catch(e){$("refSession").textContent="indisponible"}try{const r=await fetch("/servers/status");const d=await r.json();const lists=[$("serverSelect"),$("connectServer")];lists.forEach(s=>{s.innerHTML="";d.servers.filter(x=>x.enabled).forEach(x=>{const o=document.createElement("option");o.value=x.id;o.textContent=x.id.toUpperCase()+" — "+(x.healthy?"en ligne":"indisponible");s.appendChild(o)});if(d.selectedServer)s.value=d.selectedServer});const saved=localStorage.getItem("noxis_server");if(saved){$("serverSelect").value=saved;$("connectServer").value=saved} $("serverBtn").onclick=async()=>{const serverId=$("serverSelect").value;const rr=await fetch("/servers/select",{method:"POST",headers:{"content-type":"application/json"},body:JSON.stringify({serverId})});const j=await rr.json();if(j.ok){localStorage.setItem("noxis_server",j.selectedServer);$("connectServer").value=j.selectedServer}$("serverMsg").textContent=j.ok?"✅ Serveur sélectionné : "+j.selectedServer:"❌ "+(j.error||"Sélection impossible")}}catch(e){$("serverMsg").textContent="Serveurs indisponibles"} $("connectServer").addEventListener("change",()=>localStorage.setItem("noxis_server",$("connectServer").value));$("pairBtn").onclick=async()=>{const phone=$("phone").value.trim().replace(/[^0-9+]/g,"");$("pairMsg").textContent="⏳ Demande du code…";$("pairCode").hidden=true;$("myRef").hidden=true;try{const r=await fetch("/api/pairing-code",{method:"POST",headers:{"content-type":"application/json"},body:JSON.stringify({phone})});const d=await r.json();if(!r.ok)throw new Error(d.error||"Impossible de générer le code.");$("pairCode").hidden=false;$("pairCode").innerHTML='<div class="small">Code d’appairage valable environ 60 secondes</div><div class="bigcode">'+d.code+"</div>";$("pairMsg").textContent="✅ Code généré. Dans WhatsApp, ouvre Appareils connectés puis utilise l’option d’appairage par numéro.";try{const rr=await fetch("/api/referral/user",{method:"POST",headers:{"content-type":"application/json"},body:JSON.stringify({phone})});const ref=await rr.json();if(ref.ok){$("myRef").hidden=false;$("myRefCode").textContent=ref.code}}catch(e){} }catch(e){$("pairMsg").textContent="❌ "+e.message}}})();</script></body></html>`);
 });
 
 app.get("/qr", (req, res) => {
@@ -73,6 +84,15 @@ app.post("/api/pairing-code", async (req, res) => {
 });
 
 app.get("/api/referral/config", (req, res) => res.json({ ok: true, ...getReferralConfig() }));
+app.post("/api/referral/user", (req, res) => {
+  try {
+    const { ensureUser } = require("./lib/referralStore");
+    const user = ensureUser(req.body?.phone);
+    return res.json({ ok: true, code: user.code, session: user.session });
+  } catch (error) {
+    return res.status(400).json({ ok: false, error: error.message || "Impossible de créer le code de parrainage." });
+  }
+});
 
 app.get("/servers/status", (req, res) => {
   const selected = getSelectedServer();
