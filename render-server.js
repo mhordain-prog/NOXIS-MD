@@ -68,6 +68,24 @@ app.post("/api/pairing-code", async (req, res) => {
   }
 });
 
+app.get("/servers", (req, res) => {
+  const selected = selectRoundRobin();
+  res.status(200).json({
+    ok: true,
+    strategy: "round-robin",
+    selectedServer: selected ? selected.id : null,
+    servers: getServerStatus()
+  });
+});
+
+app.post("/servers/select", (req, res) => {
+  const selected = selectRoundRobin();
+  if (!selected) {
+    return res.status(503).json({ ok: false, error: "Aucun serveur configuré." });
+  }
+  return res.json({ ok: true, strategy: "round-robin", selectedServer: selected.id });
+});
+
 app.get("/health", (req, res) => {
   const { image } = getLatestQR();
   res.status(200).json({
