@@ -9,50 +9,35 @@ module.exports = {
 
   async execute(sock, msg, args, context) {
     const { sender } = context;
-    
+
     const ownerText = `
 ╔═══════════════════════════════╗
-║     👨‍💻 OWNER INFORMATION        ║
+║     👨‍💻 OWNER INFORMATION     ║
 ╚═══════════════════════════════╝
 
-👑 *Primary Owner:*
-Name: SIMON TECH
+👑 *Propriétaire principal :*
+Nom: Hordain Madila
 WhatsApp: ${config.owner}
-Status: Active ✅
+Statut: Active ✅
 
-🔧 *Bot Information:*
-Bot Name: ${config.botName}
+🔧 *Informations du bot :*
+Nom: ${config.botName}
 Version: ${config.version}
-Type: WhatsApp Multi-Device Bot
+Type: WhatsApp Multi-Device
 
-📱 *Contact:*
+📱 *Contact :*
 WhatsApp: ${config.owner}
-Telegram: @SimonTechBot2
-Support: Available 24/7
+Support: Disponible
 
-🚀 *Features Maintained By:*
-✅ Command System
-✅ Database Management
-✅ Security Features
-✅ Auto-Replies
-✅ Integration Services
-✅ API Connections
+🚀 *Maintenu pour :*
+✅ Système de commandes
+✅ Gestion de groupe
+✅ Sécurité
+✅ Réponses automatiques
+✅ Intégrations
 
-💻 *Technologies:*
-Node.js, Baileys, Telegram Bot API
-
-🎯 *Available Services:*
-• Custom Bot Development
-• Command Creation
-• Feature Integration
-• Support & Maintenance
-
-📧 *Connect With Owner:*
-WhatsApp: Chat directly
-Telegram: @SimonTechBot2
-
-⭐ *Rate & Review:*
-If you like this bot, share it with friends!
+💻 *Technologies :*
+Node.js, Baileys
 
 ╚═══════════════════════════════╝
 `;
