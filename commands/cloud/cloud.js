@@ -1,0 +1,1 @@
+module.exports={name:"cloud",aliases:["serveur","status"],category:"cloud",description:"État du cloud",async execute(sock,msg,args,c){await sock.sendMessage(c.sender,{text:"☁️ NOXIS-MD CLOUD\n\n🟢 Service actif\n🟢 Render actif\n📦 Session: stockage local"});}};
