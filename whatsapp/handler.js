@@ -1,6 +1,7 @@
 const config = require("../config");
 const commandLoader = require("../lib/commandLoader");
 const permissionMiddleware = require("../lib/permissionMiddleware");
+const activityTracker = require("../lib/activityTracker");
 
 let commandsLoaded = false;
 
@@ -57,6 +58,10 @@ async function messageHandler(sock, msg) {
     const sender = msg.key.remoteJid;
     const isGroup = msg.key.remoteJid?.endsWith("@g.us");
     const senderNumber = msg.key.participant || sender;
+
+    if (isGroup && !msg.key.fromMe) {
+      await activityTracker.record(sender, senderNumber);
+    }
 
     if (config.maintenance && senderNumber !== config.owner) {
       return sock.sendMessage(sender, {
