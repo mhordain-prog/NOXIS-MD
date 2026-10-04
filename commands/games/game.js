@@ -1,0 +1,1 @@
+module.exports={name:"game",aliases:["jeu","games"],category:"games",description:"Mini-jeu",async execute(sock,msg,args,c){const n=Math.floor(Math.random()*100)+1;await sock.sendMessage(c.sender,{text:"🎮 MINI-JEU\n\nJ'ai choisi un nombre entre 1 et 100.\nMode démonstration: "+n});}};
