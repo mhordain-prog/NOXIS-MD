@@ -11,6 +11,7 @@ const {
   useMultiFileAuthState,
   DisconnectReason,
   Browsers,
+  fetchLatestWaWebVersion,
   fetchLatestBaileysVersion
 } = require("@whiskeysockets/baileys");
 const pino = require("pino");
@@ -99,21 +100,12 @@ async function startWhatsApp() {
 
     let version;
     try {
-      // WhatsApp change régulièrement sa révision Web. Lire sw.js en direct
-      // évite les anciennes révisions qui peuvent provoquer un refus de connexion.
-      const response = await fetch("https://web.whatsapp.com/sw.js", {
-        headers: {
-          "sec-fetch-site": "none",
-          "user-agent": "Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/131.0.0.0 Safari/537.36"
-        },
-        signal: AbortSignal.timeout(15000)
-      });
-      if (!response.ok) throw new Error("HTTP " + response.status);
-      const body = await response.text();
-      const match = body.match(/\\\\?"client_revision\\\\?":\\s*(\\d+)/);
-      if (!match?.[1]) throw new Error("client_revision introuvable dans sw.js");
-      version = [2, 3000, Number(match[1])];
-      console.log("🌐 WhatsApp Web version live: " + version.join("."));
+      // Utiliser l'helper officiel de Baileys qui lit directement la révision
+      // attendue par WhatsApp Web. C'est plus fiable qu'un parsing manuel de sw.js.
+      const latest = await fetchLatestWaWebVersion();
+      if (!latest?.version) throw new Error("Version WhatsApp Web introuvable");
+      version = latest.version;
+      console.log("🌐 WhatsApp Web version live: " + version.join(".") + (latest.isLatest === false ? " (non signalée comme latest)" : ""));
     } catch (liveVersionError) {
       try {
         const latest = await fetchLatestBaileysVersion();
@@ -128,7 +120,7 @@ async function startWhatsApp() {
 
     const socketOptions = {
       auth: state,
-      browser: Browsers.macOS("Chrome"),
+      browser: Browsers.ubuntu("Chrome"),
       logger,
       syncFullHistory: false,
       markOnlineOnConnect: true
