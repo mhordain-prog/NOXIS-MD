@@ -65,14 +65,14 @@ async function applyPresence(sock, jid, current) {
 function isSettingsPrivileged(senderNumber) {
   try {
     const s = settings.get("global");
-    const owner = String(s.ownernumber || config.owner || "").replace(/\\D/g, "");
-    const sender = String(senderNumber || "").split(":")[0].replace(/\\D/g, "");
+    const owner = String(s.ownernumber || config.owner || "").replace(/\D/g, "");
+    const sender = String(senderNumber || "").split(":")[0].replace(/\D/g, "");
     if (owner && sender === owner) return true;
 
     const file = path.join(__dirname, "../data/access.json");
     const access = fs.readJsonSync(file);
     return (access.sudo || []).some(jid =>
-      String(jid).split("@")[0].replace(/\\D/g, "") === sender
+      String(jid).split("@")[0].replace(/\D/g, "") === sender
     );
   } catch {
     return false;
@@ -134,6 +134,18 @@ async function messageHandler(sock, msg) {
       }
 
       const command = commandLoader.getCommand(commandName);
+
+      if (command?.category === "settings" && !msg.key.fromMe && !isSettingsPrivileged(senderNumber)) {
+        return sock.sendMessage(sender, { text: "❌ Les réglages NOXIS sont réservés au propriétaire/SUDO." });
+      }
+
+      const hasPermission = msg.key.fromMe
+        ? true
+        : await permissionMiddleware(sock, msg, senderNumber, isGroup);
+
+      if (!hasPermission) {
+        return sock.sendMessage(sender, { text: "❌ You don't have permission to use this command." });
+      }
 
       if (!command) {
         return sock.sendMessage(sender, {
