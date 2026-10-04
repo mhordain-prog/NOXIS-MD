@@ -166,6 +166,10 @@ async function messageHandler(sock, msg) {
         return sock.sendMessage(sender, { text: "❌ Les réglages NOXIS sont réservés au propriétaire/SUDO." });
       }
 
+      if (command?.category === "owner" && !msg.key.fromMe && !permissionMiddleware.isOwnerOrSudo(senderNumber)) {
+        return sock.sendMessage(sender, { text: "❌ Cette commande est réservée au propriétaire/SUDO." });
+      }
+
       if (!command) {
         return sock.sendMessage(sender, {
           text: "❌ Command \`" + commandName + "\` not found.\nType \`" + current.prefix + "menu\` for all commands."
