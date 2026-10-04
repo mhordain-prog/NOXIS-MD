@@ -68,6 +68,15 @@ app.post("/api/pairing-code", async (req, res) => {
   }
 });
 
+app.get("/servers/status", (req, res) => {
+  res.status(200).json({
+    ok: true,
+    strategy: "round-robin",
+    serverId: process.env.NOXIS_SERVER_ID || "primary",
+    servers: getServerStatus()
+  });
+});
+
 app.get("/servers", (req, res) => {
   const selected = selectRoundRobin();
   res.status(200).json({
@@ -98,6 +107,14 @@ app.get("/health", (req, res) => {
     whatsappEnabled: process.env.WHATSAPP_ENABLED !== "false"
   });
 });
+
+const healthIntervalMs = Math.max(10000, Number(process.env.SERVER_HEALTHCHECK_INTERVAL_MS || 30000));
+setTimeout(() => {
+  checkAllServers().catch((error) => console.error("❌ Round-robin health check error:", error));
+}, 2000);
+setInterval(() => {
+  checkAllServers().catch((error) => console.error("❌ Round-robin health check error:", error));
+}, healthIntervalMs);
 
 app.listen(port, "0.0.0.0", () => {
   console.log("🌐 NOXIS-MD web server on port " + port);
