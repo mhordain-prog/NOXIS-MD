@@ -10,50 +10,40 @@ let lastPairingRequestAt = 0;
 let pairingCodeVisibleUntil = 0;
 
 app.get("/", (req, res) => {
+  const ref = String(req.query.ref || "").replace(/[^A-Za-z0-9_-]/g, "").slice(0, 40);
   res.status(200).send(`<!doctype html>
 <html lang="fr"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
-<title>NOXIS-MD — Connexion WhatsApp</title>
+<title>NOXIS-MD — Bot WhatsApp</title>
 <style>
-body{font-family:Arial,sans-serif;background:#0b0b0f;color:#fff;display:flex;justify-content:center;align-items:center;min-height:100vh;margin:0;padding:20px;box-sizing:border-box}
-.card{max-width:430px;width:100%;background:#15151c;border:1px solid #2b2b35;border-radius:18px;padding:24px;box-sizing:border-box;text-align:center}
-h1{margin-top:0}.muted{color:#aaa;line-height:1.5}input,button{width:100%;padding:14px;border-radius:10px;box-sizing:border-box;font-size:16px}input{background:#0d0d12;color:#fff;border:1px solid #3a3a45;margin:12px 0}button{border:0;cursor:pointer;background:#fff;color:#111;font-weight:700}button:disabled{opacity:.5;cursor:not-allowed}
-#result{margin-top:18px;min-height:28px}.code{font-size:30px;letter-spacing:5px;font-weight:800;margin:14px 0}.copy{margin-top:8px;background:#2a2a35;color:#fff;border:1px solid #41414d}.note{font-size:13px;color:#999;margin-top:14px}
-a{color:#fff}
+*{box-sizing:border-box}body{margin:0;font-family:Inter,system-ui,-apple-system,Segoe UI,Arial,sans-serif;background:#07070a;color:#f7f7fa}
+body:before{content:"";position:fixed;inset:0;background:radial-gradient(circle at 20% 0%,#24242f 0,transparent 35%),radial-gradient(circle at 85% 20%,#171722 0,transparent 30%);pointer-events:none}
+.wrap{position:relative;max-width:1050px;margin:auto;padding:28px 18px 60px}.nav{display:flex;align-items:center;justify-content:space-between;padding:8px 0 45px}.brand{font-weight:900;letter-spacing:2px}.brand span{opacity:.5}.pill{border:1px solid #33343f;border-radius:999px;padding:9px 14px;color:#d9d9df;font-size:13px}
+.hero{text-align:center;padding:35px 0 28px}.badge{display:inline-block;border:1px solid #30313b;background:#101017;border-radius:999px;padding:8px 13px;font-size:13px;color:#cfcfd6}.hero h1{font-size:clamp(42px,9vw,82px);line-height:.95;margin:22px 0 16px;letter-spacing:-4px}.hero p{max-width:650px;margin:0 auto;color:#aaaab5;line-height:1.65;font-size:17px}
+.actions{display:flex;gap:12px;justify-content:center;flex-wrap:wrap;margin:28px 0}.btn{display:inline-block;text-decoration:none;padding:14px 20px;border-radius:12px;font-weight:800;border:1px solid #363741;color:#fff;background:#fff;color:#09090c}.btn.alt{background:#15151c;color:#fff}
+.grid{display:grid;grid-template-columns:repeat(3,1fr);gap:14px;margin-top:38px}.card{background:rgba(18,18,25,.9);border:1px solid #292a34;border-radius:18px;padding:22px}.card h3{margin:0 0 8px}.card p{color:#999aa5;line-height:1.55;margin:0}.wide{grid-column:span 2}.ref{margin-top:14px;padding:18px;border-radius:16px;background:#101017;border:1px solid #292a34}.ref code{display:block;margin-top:8px;color:#fff;font-size:17px;word-break:break-all}.small{font-size:13px;color:#858691}
+footer{text-align:center;color:#666773;margin-top:45px;font-size:13px}
+@media(max-width:720px){.grid{grid-template-columns:1fr}.wide{grid-column:auto}.hero h1{letter-spacing:-2px}}
 </style></head>
-<body><main class="card">
-<h1>🤖 NOXIS-MD</h1>
-<h2>Connecter WhatsApp</h2>
-<p class="muted">Entre ton numéro WhatsApp au format international. Aucun mot de passe, PIN ou code SMS ne doit être saisi ici.</p>
-<input id="phone" inputmode="numeric" autocomplete="tel" placeholder="Ex. 24206XXXXXXX">
-<button id="btn" onclick="pair()">Obtenir le code d'appairage</button>
-<div id="result"></div>
-<p class="note">Le code est destiné à l'appairage WhatsApp de cette instance NOXIS-MD. Ne partage jamais un code reçu par SMS ou ton PIN WhatsApp.</p>
-</main>
-<script>
-async function copyCode(code){
- try{
-  await navigator.clipboard.writeText(code);
- }catch(e){
-  const ta=document.createElement('textarea');
-  ta.value=code; document.body.appendChild(ta); ta.select();
-  document.execCommand('copy'); ta.remove();
- }
- const btn=document.getElementById('copyBtn');
- if(btn){ btn.textContent='✅ Code copié !'; setTimeout(()=>btn.textContent='📋 Copier le code',1800); }
-}
-async function pair(){
- const btn=document.getElementById('btn'), phone=document.getElementById('phone').value.trim(), out=document.getElementById('result');
- btn.disabled=true; out.textContent='⏳ Génération du code…';
- try{
-  const r=await fetch('/api/pairing-code',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({phone})});
-  const data=await r.json();
-  if(!r.ok) throw new Error(data.error||'Impossible de générer le code.');
-  const safeCode=String(data.code).replace(/'/g,"\\'");
-  out.innerHTML='<div>Voici ton code d’appairage :</div><div class="code">'+data.code+'</div><button id="copyBtn" class="copy" onclick="copyCode(\''+safeCode+'\')">📋 Copier le code</button><div style="margin-top:12px">Dans WhatsApp : Appareils connectés → Connecter un appareil → Connecter avec un numéro de téléphone.</div>';
- }catch(e){out.textContent='❌ '+e.message;}
- finally{btn.disabled=false;}
-}
-</script></body></html>`);
+<body><main class="wrap">
+<nav class="nav"><div class="brand">NOXIS<span>-MD</span></div><div class="pill">WhatsApp • Bot</div></nav>
+<section class="hero">
+<div class="badge">⚡ Automatisation • Groupes • IA • Médias</div>
+<h1>NOXIS-MD</h1>
+<p>Un espace simple pour découvrir le bot, suivre ton parrainage et connecter ton instance WhatsApp. Design original inspiré des interfaces modernes de bots, sans copier une identité propriétaire.</p>
+<div class="actions">
+<a class="btn" href="/qr">📷 Code QR WhatsApp</a>
+<a class="btn alt" href="#parrainage">🤝 Parrainage</a>
+</div>
+${ref ? '<div class="ref">🎟️ <b>Invitation détectée</b><div class="small">Code reçu depuis le lien de parrainage :</div><code>'+ref+'</code><div class="small">Tu peux utiliser ce code avec la commande .parrainage '+ref+'</div></div>' : ''}
+</section>
+<section class="grid">
+<div class="card wide"><h3>🤖 Un bot complet</h3><p>Gestion de groupes, outils, IA, anime, médias, jeux, recherche et commandes système réunis dans une seule interface.</p></div>
+<div class="card"><h3>🔒 Mode privé</h3><p>Cette instance est configurée en mode privé pour limiter l'utilisation aux personnes autorisées.</p></div>
+<div class="card" id="parrainage"><h3>🤝 Parrainage</h3><p>Chaque utilisateur peut disposer d'un code de parrainage et consulter son classement avec les commandes dédiées.</p></div>
+<div class="card"><h3>📱 Connexion</h3><p>Utilise le QR ou l'appairage prévu par NOXIS-MD. Ne saisis jamais ton PIN ou un code reçu par SMS sur ce site.</p></div>
+</section>
+<footer>NOXIS-MD • Hordain Madila • Interface web officielle de cette instance</footer>
+</main></body></html>`);
 });
 
 app.get("/qr", (req, res) => {
