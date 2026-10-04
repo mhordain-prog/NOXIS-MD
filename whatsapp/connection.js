@@ -99,21 +99,39 @@ async function startWhatsApp() {
 
     let version;
     try {
-      const latest = await fetchLatestBaileysVersion();
-      if (latest?.version) {
-        version = latest.version;
-        console.log("🌐 Baileys WhatsApp Web version: " + version.join("."));
+      // WhatsApp change régulièrement sa révision Web. Lire sw.js en direct
+      // évite les anciennes révisions qui peuvent provoquer un refus de connexion.
+      const response = await fetch("https://web.whatsapp.com/sw.js", {
+        headers: {
+          "sec-fetch-site": "none",
+          "user-agent": "Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/131.0.0.0 Safari/537.36"
+        },
+        signal: AbortSignal.timeout(15000)
+      });
+      if (!response.ok) throw new Error("HTTP " + response.status);
+      const body = await response.text();
+      const match = body.match(/\\\\?"client_revision\\\\?":\\s*(\\d+)/);
+      if (!match?.[1]) throw new Error("client_revision introuvable dans sw.js");
+      version = [2, 3000, Number(match[1])];
+      console.log("🌐 WhatsApp Web version live: " + version.join("."));
+    } catch (liveVersionError) {
+      try {
+        const latest = await fetchLatestBaileysVersion();
+        if (latest?.version) {
+          version = latest.version;
+          console.log("⚠️ Version live indisponible, fallback Baileys: " + version.join("."));
+        }
+      } catch (fallbackError) {
+        console.log("⚠️ Version WhatsApp non récupérée: " + liveVersionError.message);
       }
-    } catch (error) {
-      console.log("⚠️ Version WhatsApp non récupérée: " + error.message);
     }
 
     const socketOptions = {
       auth: state,
-      browser: Browsers.ubuntu("NOXIS-MD"),
+      browser: Browsers.macOS("Chrome"),
       logger,
       syncFullHistory: false,
-      markOnlineOnConnect: false
+      markOnlineOnConnect: true
     };
 
     if (version) socketOptions.version = version;
@@ -174,6 +192,24 @@ async function startWhatsApp() {
         if (error?.message) console.log("ℹ️ Motif: " + error.message);
 
         sock = null;
+
+        if (statusCode === 403) {
+          // Un 403 peut être un refus temporaire côté WhatsApp. Ne pas marteler
+          // le serveur avec des reconnexions toutes les 5 secondes.
+          const retryAfterSeconds = Number(error?.data?.expire || 0) > Math.floor(Date.now() / 1000)
+            ? Number(error.data.expire) - Math.floor(Date.now() / 1000)
+            : 60;
+          console.log("⏸️ WhatsApp a refusé temporairement la connexion (403). Nouvelle tentative dans " + retryAfterSeconds + "s.");
+          latestQR = null;
+          latestQRImage = null;
+          if (!reconnectTimer) {
+            reconnectTimer = setTimeout(() => {
+              reconnectTimer = null;
+              startWhatsApp().catch((restartError) => console.error("WhatsApp restart error:", restartError.message));
+            }, Math.max(30, retryAfterSeconds) * 1000);
+          }
+          return;
+        }
 
         if (statusCode === 440) {
           console.log("🛑 Conflit WhatsApp détecté (440). Cette instance s’arrête sans relancer une deuxième connexion.");
