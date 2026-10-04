@@ -1,7 +1,8 @@
 const config = require("../config");
 const commandLoader = require("../lib/commandLoader");
 const permissionMiddleware = require("../lib/permissionMiddleware");
-const activityTracker = require("../lib/activityTracker");\nconst antispam = require("../lib/antispam");
+const activityTracker = require("../lib/activityTracker");
+const antispam = require("../lib/antispam");
 const groupProtection = require("../lib/groupProtection");
 const settings = require("../lib/settingsStore");
 const fs = require("fs-extra");
@@ -163,14 +164,6 @@ async function messageHandler(sock, msg) {
 
       if (command?.category === "settings" && !msg.key.fromMe && !isSettingsPrivileged(senderNumber)) {
         return sock.sendMessage(sender, { text: "❌ Les réglages NOXIS sont réservés au propriétaire/SUDO." });
-      }
-
-      const hasPermission = msg.key.fromMe
-        ? true
-        : await permissionMiddleware(sock, msg, senderNumber, isGroup);
-
-      if (!hasPermission) {
-        return sock.sendMessage(sender, { text: "❌ You don't have permission to use this command." });
       }
 
       if (!command) {
