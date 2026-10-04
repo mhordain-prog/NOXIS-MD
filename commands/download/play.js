@@ -52,7 +52,7 @@ module.exports = {
     }
 
     try {
-      const url = /^https?:\\/\\//i.test(input)
+      const url = /^https?:\/\//i.test(input)
         ? input
         : (await searchYouTube(input))[0]?.url;
 
