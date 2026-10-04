@@ -8,6 +8,7 @@ const {
 const pino = require("pino");
 const config = require("../config");
 const messageHandler = require("./handler");
+const settings = require("../lib/settingsStore");
 const fs = require("fs-extra");
 const QRCode = require("qrcode");
 const {
@@ -22,7 +23,35 @@ let latestQR = null;
 let latestQRImage = null;
 let authPool = null;
 
+// Petit cache runtime utilisé par anti-edit/anti-delete.
+const messageCache = new Map();
+const MAX_CACHE = 1000;
+
 const logger = pino({ level: "silent" });
+
+function rememberMessage(msg) {
+  const key = msg?.key;
+  if (!key?.id || !key?.remoteJid || !msg.message) return;
+  messageCache.set(key.remoteJid + ":" + key.id, msg);
+  if (messageCache.size > MAX_CACHE) {
+    const first = messageCache.keys().next().value;
+    if (first) messageCache.delete(first);
+  }
+}
+
+function extractText(msg) {
+  return msg?.message?.conversation ||
+    msg?.message?.extendedTextMessage?.text ||
+    msg?.message?.imageMessage?.caption ||
+    msg?.message?.videoMessage?.caption ||
+    "";
+}
+
+function renderTemplate(template, user, group) {
+  return String(template || "")
+    .replace(/@user/g, "@" + String(user || "").split("@")[0])
+    .replace(/@group/g, group || "ce groupe");
+}
 
 async function startWhatsApp() {
   if (starting) return sock;
@@ -39,9 +68,7 @@ async function startWhatsApp() {
       ));
     } else {
       fs.ensureDirSync(config.sessionsPath);
-      ({ state, saveCreds } = await useMultiFileAuthState(
-        config.sessionsPath
-      ));
+      ({ state, saveCreds } = await useMultiFileAuthState(config.sessionsPath));
       console.log("💾 WhatsApp session storage: local filesystem");
       console.log("⚠️ DATABASE_URL absent: Render may lose the session after restart.");
     }
@@ -51,10 +78,10 @@ async function startWhatsApp() {
       const latest = await fetchLatestBaileysVersion();
       if (latest?.version) {
         version = latest.version;
-        console.log(`🌐 Baileys WhatsApp Web version: ${version.join(".")}`);
+        console.log("🌐 Baileys WhatsApp Web version: " + version.join("."));
       }
     } catch (error) {
-      console.log(`⚠️ Version WhatsApp non récupérée: ${error.message}`);
+      console.log("⚠️ Version WhatsApp non récupérée: " + error.message);
     }
 
     const socketOptions = {
@@ -77,10 +104,7 @@ async function startWhatsApp() {
       if (qr) {
         latestQR = qr;
         try {
-          latestQRImage = await QRCode.toDataURL(qr, {
-            margin: 2,
-            width: 320
-          });
+          latestQRImage = await QRCode.toDataURL(qr, { margin: 2, width: 320 });
           console.log("📸 QR Code disponible sur /qr.");
         } catch (error) {
           latestQRImage = null;
@@ -92,11 +116,14 @@ async function startWhatsApp() {
         starting = false;
         latestQR = null;
         latestQRImage = null;
-        console.log("✅ WhatsApp connecté avec succès.");
 
-        if (sock?.user) {
-          console.log(`📱 Connecté comme : ${sock.user.name || sock.user.id}`);
+        const globalSettings = settings.get("global");
+        if (globalSettings.online) {
+          try { await sock.sendPresenceUpdate("available"); } catch {}
         }
+
+        console.log("✅ WhatsApp connecté avec succès.");
+        if (sock?.user) console.log("📱 Connecté comme : " + (sock.user.name || sock.user.id));
         return;
       }
 
@@ -109,16 +136,13 @@ async function startWhatsApp() {
           error?.statusCode ??
           error?.data?.statusCode;
 
-        console.log(
-          `⚠️ Connexion WhatsApp fermée (code: ${statusCode ?? "inconnu"}).`
-        );
-        if (error?.message) console.log(`ℹ️ Motif: ${error.message}`);
+        console.log("⚠️ Connexion WhatsApp fermée (code: " + (statusCode ?? "inconnu") + ").");
+        if (error?.message) console.log("ℹ️ Motif: " + error.message);
 
         sock = null;
 
         if (statusCode === DisconnectReason.loggedOut) {
           console.log("❌ Session WhatsApp invalide. Nettoyage de la session...");
-
           try {
             if (usePostgres) {
               await clearPostgresAuthState(authPool);
@@ -130,13 +154,11 @@ async function startWhatsApp() {
           } catch (cleanupError) {
             console.error("❌ Impossible de nettoyer la session:", cleanupError.message);
           }
-
           latestQR = null;
           latestQRImage = null;
         }
 
         if (reconnectTimer) return;
-
         console.log("🔄 Nouvelle tentative dans 5 secondes...");
         reconnectTimer = setTimeout(() => {
           reconnectTimer = null;
@@ -148,14 +170,116 @@ async function startWhatsApp() {
     });
 
     sock.ev.on("messages.upsert", async (m) => {
-      if (m.type === "notify") {
-        for (const msg of m.messages) {
-          try {
-            await messageHandler(sock, msg);
-          } catch (error) {
-            console.error("Message handler error:", error);
+      if (m.type !== "notify") return;
+
+      for (const msg of m.messages) {
+        try {
+          rememberMessage(msg);
+
+          const jid = msg.key?.remoteJid;
+          const globalSettings = settings.get("global");
+
+          // Statuts : lecture automatique et réaction facultative.
+          if (jid === "status@broadcast") {
+            if (globalSettings.statusview) {
+              try { await sock.readMessages([msg.key]); } catch {}
+            }
+            if (globalSettings.statuslike && !msg.key.fromMe) {
+              const emoji = Array.from(globalSettings.reactemojis || "❤️")[0] || "❤️";
+              try {
+                await sock.sendMessage("status@broadcast", {
+                  react: { text: emoji, key: msg.key }
+                });
+              } catch {}
+            }
+          }
+
+          await messageHandler(sock, msg);
+        } catch (error) {
+          console.error("Message handler error:", error);
+        }
+      }
+    });
+
+    sock.ev.on("messages.update", async (updates) => {
+      const globalSettings = settings.get("global");
+
+      for (const item of updates || []) {
+        const key = item?.key;
+        if (!key?.remoteJid || !key?.id) continue;
+
+        if (globalSettings.antiedit && item.update?.message?.editedMessage) {
+          const old = messageCache.get(key.remoteJid + ":" + key.id);
+          const oldText = extractText(old);
+          if (oldText) {
+            try {
+              await sock.sendMessage(key.remoteJid, {
+                text: "🛡️ ANTI-EDIT\nAncien message : " + oldText
+              });
+            } catch {}
           }
         }
+      }
+    });
+
+    sock.ev.on("messages.delete", async (event) => {
+      const globalSettings = settings.get("global");
+      if (!globalSettings.antidelete) return;
+
+      const keys = event?.keys || [];
+      for (const key of keys) {
+        const old = messageCache.get(key.remoteJid + ":" + key.id);
+        const oldText = extractText(old);
+        if (!oldText) continue;
+
+        try {
+          await sock.sendMessage(key.remoteJid, {
+            text: "🛡️ ANTI-DELETE\nMessage supprimé : " + oldText
+          });
+        } catch {}
+      }
+    });
+
+    sock.ev.on("group-participants.update", async ({ id, participants, action }) => {
+      try {
+        const groupSettings = settings.get(id);
+        if (!groupSettings.welcome && !groupSettings.goodbye) return;
+
+        const metadata = await sock.groupMetadata(id);
+        const groupName = metadata?.subject || id;
+
+        if (action === "add" && groupSettings.welcome) {
+          for (const user of participants || []) {
+            await sock.sendMessage(id, {
+              text: renderTemplate(groupSettings.welcomeText, user, groupName),
+              mentions: [user]
+            });
+          }
+        }
+
+        if ((action === "remove" || action === "leave") && groupSettings.goodbye) {
+          for (const user of participants || []) {
+            await sock.sendMessage(id, {
+              text: renderTemplate(groupSettings.goodbyeText, user, groupName),
+              mentions: [user]
+            });
+          }
+        }
+      } catch (error) {
+        console.error("Welcome/goodbye error:", error.message);
+      }
+    });
+
+    sock.ev.on("call", async (calls) => {
+      const globalSettings = settings.get("global");
+      if (!globalSettings.anticall) return;
+
+      for (const call of calls || []) {
+        const from = call.from;
+        if (!from) continue;
+        try {
+          await sock.sendMessage(from, { text: globalSettings.anticallmsg });
+        } catch {}
       }
     });
 
@@ -174,9 +298,7 @@ async function startWhatsApp() {
     if (!reconnectTimer) {
       reconnectTimer = setTimeout(() => {
         reconnectTimer = null;
-        startWhatsApp().catch((err) => {
-          console.error("WhatsApp restart error:", err.message);
-        });
+        startWhatsApp().catch((err) => console.error("WhatsApp restart error:", err.message));
       }, 5000);
     }
 
