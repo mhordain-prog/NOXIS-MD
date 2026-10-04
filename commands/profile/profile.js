@@ -1,0 +1,1 @@
+module.exports={name:"profile",aliases:["me","profil"],category:"profile",description:"Affiche le profil",async execute(sock,msg,args,c){await sock.sendMessage(c.sender,{text:"👤 PROFIL NOXIS-MD\n\nNom: "+(msg.pushName||"Utilisateur")+"\nJID: "+c.sender+"\nType: "+(c.isGroup?"Groupe":"Privé")});}};
