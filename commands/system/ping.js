@@ -1,29 +1,21 @@
 module.exports = {
   name: "ping",
-  aliases: ["p", "test"],
-  category: "system",
-  description: "Check bot response time",
+  aliases: ["pong"],
+  description: "Vérifier la réponse du bot",
 
-  async execute(sock, msg, args, context) {
-    const { sender } = context;
-    const startTime = Date.now();
+  async execute(sock, msg) {
+    const jid = msg.key.remoteJid;
+    const start = Date.now();
 
-    const pingMsg = await sock.sendMessage(sender, { text: "🏓 Pinging..." });
-    
-    const endTime = Date.now();
-    const latency = endTime - startTime;
+    try {
+      await sock.sendMessage(jid, { text: "🏓 Pong !" });
+      const latency = Date.now() - start;
 
-    const responseText = `
-🏓 *PONG!*
-
-⚡ *Latency:* ${latency}ms
-🌐 *Connection:* Excellent
-📊 *Status:* Online
-✅ *Response:* Active
-
-${latency < 100 ? "🚀 Ultra Fast" : latency < 300 ? "⚡ Fast" : "📶 Normal"}
-`;
-
-    await sock.sendMessage(sender, { text: responseText });
+      await sock.sendMessage(jid, {
+        text: `⚡ NOXIS-MD\n📡 Latence : ${latency} ms`
+      });
+    } catch (error) {
+      console.error("ping error:", error);
+    }
   }
 };
