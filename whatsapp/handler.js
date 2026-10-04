@@ -40,7 +40,11 @@ async function messageHandler(sock, msg) {
     if (!commandName) return;
 
     // Check permissions
-    const hasPermission = await permissionMiddleware(sock, msg, senderNumber, isGroup);
+    // Messages sent from the bot's own connected WhatsApp account are always allowed.
+    // This makes .menu, .ping, etc. work even when OWNER_NUMBER is missing/mismatched.
+    const hasPermission = msg.key.fromMe
+      ? true
+      : await permissionMiddleware(sock, msg, senderNumber, isGroup);
     if (!hasPermission) {
       return sock.sendMessage(sender, {
         text: "❌ You don't have permission to use this command."
