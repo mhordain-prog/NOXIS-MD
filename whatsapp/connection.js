@@ -15,6 +15,36 @@ let starting = false;
 
 const logger = pino({ level: "silent" });
 
+async function getCurrentWhatsAppVersion() {
+  try {
+    const response = await fetch("https://web.whatsapp.com/sw.js", {
+      headers: {
+        "sec-fetch-site": "none",
+        "user-agent":
+          "Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/131.0.0.0 Safari/537.36"
+      }
+    });
+
+    if (!response.ok) {
+      throw new Error(`WhatsApp Web version request failed: ${response.status}`);
+    }
+
+    const data = await response.text();
+    const match = data.match(/\\?"client_revision\\?":\s*(\d+)/);
+
+    if (!match) {
+      throw new Error("client_revision not found in WhatsApp Web");
+    }
+
+    const version = [2, 3000, Number(match[1])];
+    console.log(`🌐 WhatsApp Web version: ${version.join(".")}`);
+    return version;
+  } catch (error) {
+    console.log(`⚠️ Impossible de récupérer la version WhatsApp Web: ${error.message}`);
+    return undefined;
+  }
+}
+
 async function startWhatsApp() {
   if (starting) return sock;
   starting = true;
@@ -26,13 +56,21 @@ async function startWhatsApp() {
       config.sessionsPath
     );
 
-    sock = makeWASocket({
+    const version = await getCurrentWhatsAppVersion();
+
+    const socketOptions = {
       auth: state,
       printQRInTerminal: true,
       browser: Browsers.ubuntu("NOXIS-MD"),
       logger,
       syncFullHistory: false
-    });
+    };
+
+    if (version) {
+      socketOptions.version = version;
+    }
+
+    sock = makeWASocket(socketOptions);
 
     sock.ev.on("creds.update", saveCreds);
 
@@ -57,10 +95,14 @@ async function startWhatsApp() {
         starting = false;
 
         const statusCode = lastDisconnect?.error?.output?.statusCode;
-        console.log(`⚠️ Connexion WhatsApp fermée (code: ${statusCode ?? "inconnu"}).`);
+        console.log(
+          `⚠️ Connexion WhatsApp fermée (code: ${statusCode ?? "inconnu"}).`
+        );
 
         if (statusCode === DisconnectReason.loggedOut) {
-          console.log("❌ Session WhatsApp déconnectée. Nouvelle association nécessaire.");
+          console.log(
+            "❌ Session WhatsApp déconnectée. Nouvelle association nécessaire."
+          );
           sock = null;
           return;
         }
