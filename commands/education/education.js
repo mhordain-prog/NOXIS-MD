@@ -1,0 +1,1 @@
+module.exports={name:"education",aliases:["edu","cours"],category:"education",description:"Aide éducative",async execute(sock,msg,args,c){const q=c.args.join(" ");await sock.sendMessage(c.sender,{text:"📚 ÉDUCATION\n\nQuestion: "+(q||"aucune")+"\n\nUtilise .ai pour une réponse IA après configuration."});}};
