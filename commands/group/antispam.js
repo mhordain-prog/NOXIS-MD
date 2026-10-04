@@ -3,7 +3,8 @@ const settings = require("../../lib/settingsStore");
 module.exports = {
   name: "antispam",
   aliases: ["spamprotection", "spam"],
-  description: "Activer ou désactiver la protection anti-spam",
+  category: "security",
+  description: "Activer, désactiver ou vérifier la protection anti-spam",
 
   async execute(sock, msg, args) {
     const jid = msg.key.remoteJid;
@@ -12,26 +13,35 @@ module.exports = {
     }
 
     const metadata = await sock.groupMetadata(jid);
-    const sender = msg.key.participant || msg.key.remoteJid;
+    const sender = msg.key.participant || jid;
     const member = metadata.participants.find(p => p.id === sender);
 
-    if (!member || !["admin", "superadmin"].includes(member.admin)) {
+    if (!member?.admin) {
       return sock.sendMessage(jid, { text: "❌ Tu dois être administrateur pour utiliser cette commande." });
     }
 
-    const action = String(args[0] || "").toLowerCase();
-
-    if (!["on", "off"].includes(action)) {
-      const current = settings.get(jid);
+    const action = String(args[0] || "status").toLowerCase();
+    if (!["on", "off", "status"].includes(action)) {
       return sock.sendMessage(jid, {
-        text: `🛡️ ANTISPAM : ${current.antispam ? "ON" : "OFF"}\n\nUtilise : antispam on ou antispam off`
+        text: "🛡️ Utilisation : .antispam on | .antispam off | .antispam status"
       });
     }
 
-    await settings.set(jid, "antispam", action === "on");
-    await sock.sendMessage(jid, {
-      text: action === "on"
-        ? "🛡️ Anti-spam activé. Plus de 5 messages en 5 secondes peuvent être bloqués."
+    const current = settings.get(jid);
+    if (action === "status") {
+      return sock.sendMessage(jid, {
+        text: "🛡️ ANTISPAM\n\n" +
+          "Statut : " + (current.antispam ? "🟢 ACTIVÉ" : "🔴 DÉSACTIVÉ") +
+          "\nProtection : 6 messages en 8 secondes"
+      });
+    }
+
+    const enabled = action === "on";
+    await settings.set(jid, "antispam", enabled);
+
+    return sock.sendMessage(jid, {
+      text: enabled
+        ? "🛡️ Anti-spam activé. Les rafales de messages des membres non-admins seront limitées."
         : "🛡️ Anti-spam désactivé."
     });
   }
