@@ -12,20 +12,31 @@ function getMessageText(msg) {
     "";
 }
 
-async function maybeReact(sock, msg, text) {
+function reactionFor(text) {
   const value = text.trim().toLowerCase();
-  if (!value || value.startsWith(config.prefix)) return;
+  const rules = [
+    [/\b(bonjour|salut|slt|hello|coucou)\b/, "👋"],
+    [/\b(merci|thanks|thank you|thx)\b/, "❤️"],
+    [/\b(mdr|mdrr|ptdr|lol)\b|😂|🤣/, "😂"],
+    [/\b(bravo|félicitations|felicitations|gg)\b/, "🔥"],
+    [/\b(bonne nuit|good night)\b/, "🌙"],
+    [/\b(bonne chance|good luck)\b/, "🍀"],
+    [/\b(ok|d'accord|dac|compris|exact)\b/, "👍"],
+    [/\b(waouh|wow|incroyable|magnifique)\b/, "🤩"],
+    [/\b(triste|désolé|desole|pardon)\b/, "❤️"],
+    [/^[❤️💔😂🤣😍🔥👍👎👏🎉🤩😎🥳]+$/, "🔥"]
+  ];
+  for (const [pattern, emoji] of rules) {
+    if (pattern.test(value)) return emoji;
+  }
+  return null;
+}
 
-  let emoji = null;
+async function maybeReact(sock, msg, text) {
+  if (!config.autoReact || msg.key.fromMe) return;
+  if (!text || text.startsWith(config.prefix)) return;
 
-  if (/\b(bonjour|salut|slt|hello|coucou)\b/.test(value)) emoji = "👋";
-  else if (/\b(merci|thanks|thank you)\b/.test(value)) emoji = "❤️";
-  else if (/\b(mdrr?|ptdr|lol|😂|🤣)\b/.test(value)) emoji = "😂";
-  else if (/\b(bravo|félicitations|felicitations|gg)\b/.test(value)) emoji = "🔥";
-  else if (/\b(bonne nuit|good night)\b/.test(value)) emoji = "🌙";
-  else if (/\b(triste|désolé|desole)\b/.test(value)) emoji = "❤️";
-  else if (/\b(ok|d'accord|dac|compris)\b/.test(value)) emoji = "👍";
-
+  const emoji = reactionFor(text);
   if (!emoji) return;
 
   try {
@@ -52,7 +63,6 @@ async function messageHandler(sock, msg) {
       });
     }
 
-    // React to normal messages before command processing.
     await maybeReact(sock, msg, text);
 
     if (!text.startsWith(config.prefix)) return;
