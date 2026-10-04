@@ -2,7 +2,8 @@ const {
   default: makeWASocket,
   useMultiFileAuthState,
   DisconnectReason,
-  Browsers
+  Browsers,
+  fetchLatestBaileysVersion
 } = require("@whiskeysockets/baileys");
 const pino = require("pino");
 const config = require("../config");
@@ -18,36 +19,6 @@ let latestQRImage = null;
 
 const logger = pino({ level: "silent" });
 
-async function getCurrentWhatsAppVersion() {
-  try {
-    const response = await fetch("https://web.whatsapp.com/sw.js", {
-      headers: {
-        "sec-fetch-site": "none",
-        "user-agent":
-          "Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/131.0.0.0 Safari/537.36"
-      }
-    });
-
-    if (!response.ok) {
-      throw new Error(`WhatsApp Web version request failed: ${response.status}`);
-    }
-
-    const data = await response.text();
-    const match = data.match(/\\?"client_revision\\?":\s*(\d+)/);
-
-    if (!match) {
-      throw new Error("client_revision not found in WhatsApp Web");
-    }
-
-    const version = [2, 3000, Number(match[1])];
-    console.log(`🌐 WhatsApp Web version: ${version.join(".")}`);
-    return version;
-  } catch (error) {
-    console.log(`⚠️ Impossible de récupérer la version WhatsApp Web: ${error.message}`);
-    return undefined;
-  }
-}
-
 async function startWhatsApp() {
   if (starting) return sock;
   starting = true;
@@ -59,19 +30,27 @@ async function startWhatsApp() {
       config.sessionsPath
     );
 
-    const version = await getCurrentWhatsAppVersion();
+    let version;
+    try {
+      const latest = await fetchLatestBaileysVersion();
+      if (latest?.version) {
+        version = latest.version;
+        console.log(`🌐 Baileys WhatsApp Web version: ${version.join(".")}`);
+      }
+    } catch (error) {
+      console.log(`⚠️ Version WhatsApp non récupérée: ${error.message}`);
+    }
 
     const socketOptions = {
       auth: state,
       printQRInTerminal: true,
       browser: Browsers.ubuntu("NOXIS-MD"),
       logger,
-      syncFullHistory: false
+      syncFullHistory: false,
+      markOnlineOnConnect: false
     };
 
-    if (version) {
-      socketOptions.version = version;
-    }
+    if (version) socketOptions.version = version;
 
     sock = makeWASocket(socketOptions);
 
@@ -82,12 +61,18 @@ async function startWhatsApp() {
 
       if (qr) {
         latestQR = qr;
-        latestQRImage = null;
         try {
-          latestQRImage = await QRCode.toDataURL(qr, { margin: 2, width: 320 });
+          latestQRImage = await QRCode.toDataURL(qr, {
+            margin: 2,
+            width: 320
+          });
           console.log("📸 QR Code disponible sur /qr.");
         } catch (error) {
-          console.error("❌ Impossible de générer l’image du QR:", error.message);
+          latestQRImage = null;
+          console.error(
+            "❌ Impossible de générer l’image du QR:",
+            error.message
+          );
         }
       }
 
@@ -106,17 +91,36 @@ async function startWhatsApp() {
       if (connection === "close") {
         starting = false;
 
-        const statusCode = lastDisconnect?.error?.output?.statusCode;
+        const error = lastDisconnect?.error;
+        const statusCode =
+          error?.output?.statusCode ??
+          error?.statusCode ??
+          error?.data?.statusCode;
+
         console.log(
           `⚠️ Connexion WhatsApp fermée (code: ${statusCode ?? "inconnu"}).`
         );
+        if (error?.message) {
+          console.log(`ℹ️ Motif: ${error.message}`);
+        }
+
+        sock = null;
 
         if (statusCode === DisconnectReason.loggedOut) {
           console.log(
-            "❌ Session WhatsApp déconnectée. Nouvelle association nécessaire."
+            "❌ Session WhatsApp invalide. Nettoyage de la session locale pour permettre un nouveau QR..."
           );
-          sock = null;
-          return;
+          try {
+            await fs.emptyDir(config.sessionsPath);
+            console.log("🧹 Session locale nettoyée.");
+          } catch (cleanupError) {
+            console.error(
+              "❌ Impossible de nettoyer la session:",
+              cleanupError.message
+            );
+          }
+          latestQR = null;
+          latestQRImage = null;
         }
 
         if (reconnectTimer) return;
@@ -124,8 +128,8 @@ async function startWhatsApp() {
         console.log("🔄 Nouvelle tentative dans 5 secondes...");
         reconnectTimer = setTimeout(() => {
           reconnectTimer = null;
-          startWhatsApp().catch((error) => {
-            console.error("WhatsApp restart error:", error);
+          startWhatsApp().catch((restartError) => {
+            console.error("WhatsApp restart error:", restartError.message);
           });
         }, 5000);
       }
@@ -159,7 +163,7 @@ async function startWhatsApp() {
       reconnectTimer = setTimeout(() => {
         reconnectTimer = null;
         startWhatsApp().catch((err) => {
-          console.error("WhatsApp restart error:", err);
+          console.error("WhatsApp restart error:", err.message);
         });
       }, 5000);
     }
