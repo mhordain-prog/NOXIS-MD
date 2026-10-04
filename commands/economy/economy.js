@@ -1,0 +1,1 @@
+const b=new Map();module.exports={name:"economy",aliases:["eco","solde"],category:"economy",description:"Économie virtuelle",async execute(sock,msg,args,c){const id=c.sender;const x=b.get(id)||0;if(c.args[0]==="daily"){b.set(id,x+100);return sock.sendMessage(id,{text:"💰 +100 crédits."});}await sock.sendMessage(id,{text:"💰 ÉCONOMIE\nSolde: "+x+" crédits\n\n.economy daily"});}};
