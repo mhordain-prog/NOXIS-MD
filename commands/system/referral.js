@@ -1,6 +1,7 @@
 const referral = require("../../lib/referralStore");
 
 const SITE_URL = "https://noxis-md-wa.onrender.com";
+const MEDALS = ["🥇", "🥈", "🥉"];
 
 module.exports = {
   name: "parrainage",
@@ -16,12 +17,18 @@ module.exports = {
     if (action === "top" || action === "classement" || action === "leaderboard" || action === "rank") {
       const board = referral.getLeaderboard(10);
       const lines = board.length
-        ? board.map((item, index) => (index + 1) + ". " + item.code + " — " + item.count + " filleul" + (item.count > 1 ? "s" : "")).join("\n")
+        ? board.map((item, index) => {
+            const rank = MEDALS[index] || ("#" + (index + 1));
+            const shortId = item.id ? ("+" + item.id.slice(-4)) : item.code;
+            return rank + " *" + shortId + "* — " + item.count + " filleul" + (item.count > 1 ? "s" : "");
+          }).join("\n")
         : "Aucun parrainage enregistré pour le moment.";
 
       return sock.sendMessage(jid, {
         text:
-          "🏆 *CLASSEMENT PARRAINAGE NOXIS-MD*\n\n" +
+          "🏆 *CLASSEMENT PARRAINAGE NOXIS-MD*\n" +
+          "━━━━━━━━━━━━━━━━━━\n" +
+          "👑 Top 10 des parrains\n\n" +
           lines +
           "\n\n👥 Total des filleuls : *" + referral.getTotalReferrals() + "*"
       });
