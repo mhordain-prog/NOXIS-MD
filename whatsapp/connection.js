@@ -30,6 +30,7 @@ let starting = false;
 let latestQR = null;
 let latestQRImage = null;
 let authPool = null;
+let shuttingDown = false;
 
 // Petit cache runtime utilisé par anti-edit/anti-delete.
 const messageCache = new Map();
@@ -137,6 +138,11 @@ async function startWhatsApp() {
       if (connection === "close") {
         starting = false;
 
+        if (shuttingDown) {
+          sock = null;
+          return;
+        }
+
         const error = lastDisconnect?.error;
         const statusCode =
           error?.output?.statusCode ??
@@ -147,6 +153,13 @@ async function startWhatsApp() {
         if (error?.message) console.log("ℹ️ Motif: " + error.message);
 
         sock = null;
+
+        if (statusCode === 440) {
+          console.log("🛑 Conflit WhatsApp détecté (440). Cette instance s’arrête sans relancer une deuxième connexion.");
+          latestQR = null;
+          latestQRImage = null;
+          return;
+        }
 
         if (statusCode === DisconnectReason.loggedOut) {
           console.log("❌ Session WhatsApp invalide. Nettoyage de la session...");
@@ -345,3 +358,24 @@ function getLatestQR() {
 }
 
 module.exports = { startWhatsApp, getSocket, getLatestQR };
+
+
+async function shutdownWhatsApp(signal) {
+  if (shuttingDown) return;
+  shuttingDown = true;
+  if (reconnectTimer) {
+    clearTimeout(reconnectTimer);
+    reconnectTimer = null;
+  }
+  try {
+    if (sock) {
+      sock.end(new Error("Render shutdown: " + signal));
+    }
+  } catch (error) {
+    console.error("WhatsApp shutdown error:", error.message);
+  }
+  sock = null;
+}
+
+process.once("SIGTERM", () => { shutdownWhatsApp("SIGTERM").finally(() => process.exit(0)); });
+process.once("SIGINT", () => { shutdownWhatsApp("SIGINT").finally(() => process.exit(0)); });
