@@ -1,10 +1,14 @@
 module.exports = {
-  name: "8ball",
-  aliases: ["eightball"],
-  description: "Répondre à une question avec une réponse aléatoire",
+  name: '8ball',
+  aliases: ['question', 'oracle'],
+  category: 'fun',
+  description: 'Répondre aléatoirement à une question',
 
   async execute(sock, msg, args) {
-    const jid = msg.key.remoteJid;
-    const answers = ['🎱 Oui.', '🎱 Non.', '🎱 Peut-être.', '🎱 Très probable.', '🎱 Peu probable.', '🎱 Le hasard décidera.']; const q = args.join(' ').trim(); if (!q) return sock.sendMessage(jid, { text: '⚠️ Utilisation : .8ball Ta question' }); return sock.sendMessage(jid, { text: '🎱 ' + answers[Math.floor(Math.random() * answers.length)] });
+    const q = args.join(' ').trim();
+    if (!q) return sock.sendMessage(msg.key.remoteJid, { text: '🔮 Pose une question.\nExemple : .8ball Est-ce que ça va marcher ?' });
+    const answers = ['🟢 Oui.', '🟢 Très probable.', '🟡 Peut-être.', '🟡 Difficile à dire.', '🔴 Probablement pas.', '🔴 Non.', '🟣 Demande-moi plus tard.'];
+    const answer = answers[Math.floor(Math.random() * answers.length)];
+    return sock.sendMessage(msg.key.remoteJid, { text: '🔮 8 BALL\n\n❓ ' + q + '\n💬 ' + answer });
   }
 };
