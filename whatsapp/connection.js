@@ -1,3 +1,11 @@
+const nodeCrypto = require("crypto");
+
+// Baileys utilise Web Crypto via la variable globale `crypto`.
+// Sur certaines images Node, elle n'est pas exposée automatiquement.
+if (!globalThis.crypto && nodeCrypto.webcrypto) {
+  globalThis.crypto = nodeCrypto.webcrypto;
+}
+
 const {
   default: makeWASocket,
   useMultiFileAuthState,
