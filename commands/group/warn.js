@@ -1,3 +1,5 @@
+const warnings = require("../../lib/warnings");
+
 module.exports = {
   name: "warn",
   aliases: ["avertir"],
@@ -29,9 +31,10 @@ module.exports = {
     }
 
     const reason = args.join(" ").trim() || "Aucune raison précisée.";
+    const count = await warnings.add(jid, target, reason);
 
     await sock.sendMessage(jid, {
-      text: `⚠️ AVERTISSEMENT\n\n👤 Membre : @${target.split("@")[0]}\n📝 Motif : ${reason}`,
+      text: `⚠️ AVERTISSEMENT ${count}/3\n\n👤 Membre : @${target.split("@")[0]}\n📝 Motif : ${reason}`,
       mentions: [target]
     });
   }
