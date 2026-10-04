@@ -1,0 +1,1 @@
+module.exports={name:"media",aliases:["metainfo"],category:"media",description:"Informations média",async execute(sock,msg,args,c){await sock.sendMessage(c.sender,{text:"🖼️ MEDIA\n\nImages, vidéos, audio et documents WhatsApp sont pris en charge.\nCette commande affiche actuellement l'aide média."});}};
