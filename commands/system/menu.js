@@ -1,4 +1,5 @@
 const config = require("../../config");
+const settings = require("../../lib/settingsStore");
 const commandLoader = require("../../lib/commandLoader");
 
 module.exports = {
@@ -39,6 +40,7 @@ module.exports = {
       bank: "🏦 ʙᴀɴᴋ",
       cloud: "☁️ ᴄʟᴏᴜᴅ",
       developer: "🚀 ᴅᴇᴠᴇʟᴏᴘᴇʀ",
+      settings: "⚙️ sᴇᴛᴛɪɴɢs",
       profile: "👤 ᴘʀᴏғɪʟᴇ + ᴅᴘ",
       other: "📦 ᴏᴛʜᴇʀ"
     };
@@ -46,7 +48,7 @@ module.exports = {
     const preferred = [
       "tools","ai","anime","media","owner","admin","group","downloader",
       "system","search","fun","education","security","internet","design",
-      "games","economy","bank","cloud","developer","profile","other"
+      "games","economy","bank","cloud","developer","profile","settings","other"
     ];
 
     let sections = "";
@@ -68,14 +70,16 @@ module.exports = {
     const m = Math.floor((runtime % 3600) / 60);
     const s = runtime % 60;
 
+    const currentSettings = settings.get("global");
+
     const menuText =
       `\\n━━━━━━ 🤖 ʙᴏᴛ ɪɴғᴏ ━━━━━━\\n` +
       `◉ 🎉 ꧁༒☬ NOXIS ☬༒꧂\\n` +
       `◉ 👑 ᴏᴡɴᴇʀ: Hordain Madila\\n` +
       `◉ 📜 ᴄᴏᴍᴍᴀɴᴅs: ${active}\\n` +
       `◉ ⏱️ ʀᴜɴᴛɪᴍᴇ: ${h}h ${m}m ${s}s\\n` +
-      `◉ 📦 ᴘʀᴇғɪx: ${config.prefix}\\n` +
-      `◉ ⚙️ ᴍᴏᴅᴇ: ${config.botMode}\\n` +
+      `◉ 📦 ᴘʀᴇғɪx: ${currentSettings.prefix}\\n` +
+      `◉ ⚙️ ᴍᴏᴅᴇ: ${currentSettings.mode}\\n` +
       `◉ 🏷️ ᴠᴇʀsɪᴏɴ: ${config.version}\\n\\n` +
       sections +
       `\\n> *© ꨄ 𝙉𝙊𝙓𝙄𝙎-𝙈𝘿 ꨄ*`;
