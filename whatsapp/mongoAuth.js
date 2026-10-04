@@ -1,8 +1,5 @@
 const { MongoClient } = require("mongodb");
-const {
-  initAuthCreds,
-  BufferJSON
-} = require("@whiskeysockets/baileys");
+const { initAuthCreds, BufferJSON } = require("@whiskeysockets/baileys");
 
 let client;
 let collection;
@@ -16,9 +13,7 @@ function decode(value) {
 }
 
 async function useMongoDBAuthState(uri, dbName = "noxis") {
-  if (!uri) {
-    throw new Error("MONGODB_URI is required for persistent WhatsApp sessions");
-  }
+  if (!uri) throw new Error("MONGODB_URI is required for persistent WhatsApp sessions");
 
   client = new MongoClient(uri);
   await client.connect();
@@ -32,13 +27,11 @@ async function useMongoDBAuthState(uri, dbName = "noxis") {
   const keys = {
     get: async (type, ids) => {
       const docs = await collection
-        .find({ type, _id: { $in: ids.map((id) => `key:${type}:${id}`) } })
+        .find({ type, id: { $in: ids } })
         .toArray();
 
       const result = {};
-      for (const doc of docs) {
-        result[doc.id] = decode(doc.value);
-      }
+      for (const doc of docs) result[doc.id] = decode(doc.value);
       return result;
     },
 
@@ -51,9 +44,7 @@ async function useMongoDBAuthState(uri, dbName = "noxis") {
           const _id = `key:${type}:${id}`;
 
           if (value === null || value === undefined) {
-            operations.push({
-              deleteOne: { filter: { _id } }
-            });
+            operations.push({ deleteOne: { filter: { _id } } });
           } else {
             operations.push({
               updateOne: {
@@ -72,31 +63,26 @@ async function useMongoDBAuthState(uri, dbName = "noxis") {
         }
       }
 
-      if (operations.length) {
-        await collection.bulkWrite(operations);
-      }
+      if (operations.length) await collection.bulkWrite(operations);
     }
   };
 
   const saveCreds = async () => {
     await collection.updateOne(
       { _id: "creds" },
-      {
-        $set: {
-          value: JSON.stringify(encode(creds))
-        }
-      },
+      { $set: { value: JSON.stringify(encode(creds)) } },
       { upsert: true }
     );
   };
 
   await collection.createIndex({ type: 1, id: 1 });
-
   console.log("💾 WhatsApp session storage: MongoDB");
-  return {
-    state: { creds, keys },
-    saveCreds
-  };
+
+  return { state: { creds, keys }, saveCreds };
 }
 
-module.exports = { useMongoDBAuthState };
+async function clearMongoDBAuthState() {
+  if (collection) await collection.deleteMany({});
+}
+
+module.exports = { useMongoDBAuthState, clearMongoDBAuthState };
