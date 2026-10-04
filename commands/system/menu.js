@@ -39,7 +39,7 @@ module.exports = {
       bank: "🏦 ʙᴀɴᴋ",
       cloud: "☁️ ᴄʟᴏᴜᴅ",
       developer: "🚀 ᴅᴇᴠᴇʟᴏᴘᴇʀ",
-      profile: "👤 ᴘʀᴏғɪʟᴇ",
+      profile: "👤 ᴘʀᴏғɪʟᴇ + ᴅᴘ",
       other: "📦 ᴏᴛʜᴇʀ"
     };
 
@@ -57,9 +57,9 @@ module.exports = {
 
       const unique = [...new Set(list)].sort();
       sections +=
-        `━━━━━『 ${labels[category] || category.toUpperCase()} 』━━━━━\n◉\n` +
+        `━━━━━『 ${labels[category] || category.toUpperCase()} 』━━━━━\\n◉\\n` +
         unique.map(name => `◉ ➤ ${name}`).join("\n") +
-        `\n◉\n┗━━━━━━━━━━━━━━\n`;
+        `\\n◉\\n┗━━━━━━━━━━━━━━\\n`;
     }
 
     const active = new Set(commands.map(c => c.name)).size;
@@ -69,16 +69,16 @@ module.exports = {
     const s = runtime % 60;
 
     const menuText =
-      `\n━━━━━━ 🤖 ʙᴏᴛ ɪɴғᴏ ━━━━━━\n` +
-      `◉ 🎉 ꧁༒☬ NOXIS ☬༒꧂\n` +
-      `◉ 👑 ᴏᴡɴᴇʀ: Hordain Madila\n` +
-      `◉ 📜 ᴄᴏᴍᴍᴀɴᴅs: ${active}\n` +
-      `◉ ⏱️ ʀᴜɴᴛɪᴍᴇ: ${h}h ${m}m ${s}s\n` +
-      `◉ 📦 ᴘʀᴇғɪx: ${config.prefix}\n` +
-      `◉ ⚙️ ᴍᴏᴅᴇ: ${config.botMode}\n` +
-      `◉ 🏷️ ᴠᴇʀsɪᴏɴ: ${config.version}\n\n` +
+      `\\n━━━━━━ 🤖 ʙᴏᴛ ɪɴғᴏ ━━━━━━\\n` +
+      `◉ 🎉 ꧁༒☬ NOXIS ☬༒꧂\\n` +
+      `◉ 👑 ᴏᴡɴᴇʀ: Hordain Madila\\n` +
+      `◉ 📜 ᴄᴏᴍᴍᴀɴᴅs: ${active}\\n` +
+      `◉ ⏱️ ʀᴜɴᴛɪᴍᴇ: ${h}h ${m}m ${s}s\\n` +
+      `◉ 📦 ᴘʀᴇғɪx: ${config.prefix}\\n` +
+      `◉ ⚙️ ᴍᴏᴅᴇ: ${config.botMode}\\n` +
+      `◉ 🏷️ ᴠᴇʀsɪᴏɴ: ${config.version}\\n\\n` +
       sections +
-      `\n> *© ꨄ 𝙉𝙊𝙓𝙄𝙎-𝙈𝘿 ꨄ*`;
+      `\\n> *© ꨄ 𝙉𝙊𝙓𝙄𝙎-𝙈𝘿 ꨄ*`;
 
     await sock.sendMessage(sender, { text: menuText });
   }
