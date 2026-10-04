@@ -1,0 +1,1 @@
+module.exports={name:"design",aliases:["logo","style"],category:"design",description:"Idées design",async execute(sock,msg,args,c){const t=c.args.join(" ");await sock.sendMessage(c.sender,{text:"🎨 DESIGN\n\nConcept: "+(t||"NOXIS-MD")+"\nStyle: sombre • mystérieux • moderne"});}};
