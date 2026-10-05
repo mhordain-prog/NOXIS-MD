@@ -97,33 +97,16 @@ module.exports = {
       "🏷️ Version : " + config.version + "\n" +
       "⚙️ Préfixe : " + prefix + "\n\n";
 
-    const MAX_CHARS = 4500;
-    const chunks = [];
-    let current = "";
+    const menuText = header +
+      "📚 *MENU COMPLET*\n\n" +
+      sections.join("\n\n");
 
-    for (const section of sections) {
-      const candidate = current ? current + "\n\n" + section : section;
-      if (candidate.length > MAX_CHARS && current) {
-        chunks.push(current);
-        current = section;
-      } else {
-        current = candidate;
-      }
-    }
-
-    if (current) chunks.push(current);
-
-    if (!chunks.length) {
-      return sock.sendMessage(jid, { text: header + "❌ Aucune commande chargée." });
-    }
-
-    for (let i = 0; i < chunks.length; i++) {
-      await sock.sendMessage(jid, {
-        text:
-          header +
-          "📚 *MENU COMPLET — PARTIE " + (i + 1) + "/" + chunks.length + "*\n\n" +
-          chunks[i]
+    if (menuText.length > 60000) {
+      return sock.sendMessage(jid, {
+        text: header + "⚠️ Le menu complet dépasse la taille maximale d'un seul message. Utilise .menu <catégorie> pour afficher une catégorie."
       });
     }
+
+    return sock.sendMessage(jid, { text: menuText });
   }
 };
