@@ -58,6 +58,17 @@ async function getThumbnailBuffer(url) {
   return Buffer.from(response.data);
 }
 
+function isYouTubeAntiBotError(error) {
+  const detail = String(error?.stderr || error?.message || '').toLowerCase();
+  return (
+    detail.includes('sign in to confirm') ||
+    detail.includes('not a bot') ||
+    detail.includes('login_required') ||
+    detail.includes('confirm you’re not a bot') ||
+    detail.includes("confirm you're not a bot")
+  );
+}
+
 module.exports = {
   name: 'play',
   aliases: ['song'],
@@ -75,9 +86,10 @@ module.exports = {
     }
 
     let audioPath = null;
+    let info = null;
 
     try {
-      const info = /^https?:\/\//i.test(input)
+      info = /^https?:\/\//i.test(input)
         ? {
             title: input,
             url: input,
@@ -94,7 +106,6 @@ module.exports = {
         });
       }
 
-      // Envoie d’abord la fiche du morceau avec sa pochette.
       let thumbnail = null;
       try {
         thumbnail = await getThumbnailBuffer(info.thumbnail);
@@ -122,20 +133,46 @@ module.exports = {
         await sock.sendMessage(jid, { text: caption });
       }
 
-      // Le téléchargement reste limité aux contenus que l’utilisateur a le droit de récupérer.
-      audioPath = await downloadYouTubeAudio(info.url);
-      const audio = fs.readFileSync(audioPath);
+      try {
+        audioPath = await downloadYouTubeAudio(info.url);
+        const audio = fs.readFileSync(audioPath);
 
-      await sock.sendMessage(jid, {
-        audio,
-        mimetype: 'audio/mpeg',
-        fileName: path.basename(audioPath).replace(/\.[^.]+$/, '.mp3'),
-        ptt: false
-      });
+        await sock.sendMessage(jid, {
+          audio,
+          mimetype: 'audio/mpeg',
+          fileName: path.basename(audioPath).replace(/\.[^.]+$/, '.mp3'),
+          ptt: false
+        });
+      } catch (downloadError) {
+        console.error('YouTube audio download error:', downloadError);
 
-      try { fs.unlinkSync(audioPath); } catch {}
+        if (audioPath) {
+          try { fs.unlinkSync(audioPath); } catch {}
+          audioPath = null;
+        }
+
+        if (isYouTubeAntiBotError(downloadError)) {
+          return sock.sendMessage(jid, {
+            text:
+              '⚠️ YouTube bloque actuellement le téléchargement audio pour ce serveur.\n\n' +
+              '🔎 La recherche fonctionne toujours.\n' +
+              '🎵 Titre : ' + info.title + '\n' +
+              '👤 Artiste/Chaîne : ' + info.author + '\n\n' +
+              '🔗 Ouvre la vidéo YouTube depuis la fiche ci-dessus pour l’écouter.\n' +
+              'ℹ️ NOXIS-MD ne contourne pas la protection anti-bot de YouTube.'
+          });
+        }
+
+        const detail = downloadError?.stderr || downloadError?.message || 'erreur inconnue';
+
+        return sock.sendMessage(jid, {
+          text:
+            '❌ La recherche YouTube fonctionne, mais le téléchargement audio a échoué.\n\n' +
+            'Détail : ' + String(detail).slice(0, 700)
+        });
+      }
     } catch (error) {
-      console.error('YouTube audio error:', error);
+      console.error('YouTube play error:', error);
 
       if (audioPath) {
         try { fs.unlinkSync(audioPath); } catch {}
@@ -145,9 +182,8 @@ module.exports = {
 
       return sock.sendMessage(jid, {
         text:
-          '❌ La recherche YouTube fonctionne, mais le téléchargement audio a échoué.\n\n' +
-          'Détail : ' + detail.slice(0, 1200) + '\n\n' +
-          '⚠️ Si YouTube demande une vérification anti-bot, le bot ne contourne pas cette protection. Il faut utiliser une source ou une méthode d’accès autorisée.'
+          '❌ La commande .play a rencontré une erreur.\n\n' +
+          'Détail : ' + String(detail).slice(0, 700)
       });
     }
   }
