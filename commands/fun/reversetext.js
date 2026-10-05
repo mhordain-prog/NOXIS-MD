@@ -1,1 +1,0 @@
-module.exports={name:"reversetext",aliases:["reverse"],category:"fun",description:"Inverser un texte",async execute(sock,msg,args){const jid=msg.key.remoteJid;const t=args.join(" ");if(!t)return sock.sendMessage(jid,{text:"❌ Utilisation : .reversetext <texte>"});return sock.sendMessage(jid,{text:Array.from(t).reverse().join("")});}};
