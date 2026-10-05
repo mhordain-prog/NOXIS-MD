@@ -1,0 +1,1 @@
+module.exports={name:"urlencode",aliases:["urlenc"],category:"tools",description:"Encoder un texte pour une URL",async execute(sock,msg,args){const jid=msg.key.remoteJid;const t=args.join(" ");if(!t)return sock.sendMessage(jid,{text:"❌ Utilisation : .urlencode <texte>"});return sock.sendMessage(jid,{text:encodeURIComponent(t)});}};
