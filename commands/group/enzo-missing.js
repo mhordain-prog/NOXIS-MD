@@ -29,7 +29,7 @@ function targetFrom(msg, args) {
   const raw = String(args?.[0] || "").replace(/[^0-9]/g, "");
   return raw ? raw + "@s.whatsapp.net" : null;
 }
-function reply(sock, jid, text) { return sock.sendMessage(jid, { text }); }
+function reply(sock, jid, text, extra = {}) { return sock.sendMessage(jid, { text, ...extra }); }
 
 module.exports = [
   {
