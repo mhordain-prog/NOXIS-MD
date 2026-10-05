@@ -147,11 +147,18 @@ async function startWhatsApp() {
 
     const socketOptions = {
       auth: state,
-      // WEB_BROWSER correspond au profil Chrome Web attendu pour l'appairage.
+      // Profil Web moderne pour la connexion multi-appareils.
       browser: Browsers.macOS("Chrome"),
       logger,
       syncFullHistory: false,
-      markOnlineOnConnect: true
+      markOnlineOnConnect: true,
+      // WhatsApp peut demander à Baileys de renvoyer un message qu'il
+      // n'arrive pas à déchiffrer. Sans getMessage, le message peut rester
+      // bloqué sur « En attente de ce message ».
+      getMessage: async (key) => {
+        const cached = messageCache.get(String(key?.remoteJid || "") + ":" + String(key?.id || ""));
+        return cached?.message || undefined;
+      }
     };
 
     if (version) socketOptions.version = version;
