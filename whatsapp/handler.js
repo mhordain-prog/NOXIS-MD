@@ -5,8 +5,6 @@ const activityTracker = require("../lib/activityTracker");
 const antispam = require("../lib/antispam");
 const groupProtection = require("../lib/groupProtection");
 const settings = require("../lib/settingsStore");
-const fs = require("fs-extra");
-const path = require("path");
 
 let commandsLoaded = false;
 
@@ -21,15 +19,15 @@ function getMessageText(msg) {
 function reactionFor(text) {
   const value = text.trim().toLowerCase();
   const rules = [
-    [/(bonjour|salut|slt|hello|coucou)/, "👋"],
-    [/(merci|thanks|thank you|thx)/, "❤️"],
-    [/(mdr|mdrr|ptdr|lol)|😂|🤣/, "😂"],
-    [/(bravo|félicitations|felicitations|gg)/, "🔥"],
-    [/(bonne nuit|good night)/, "🌙"],
-    [/(bonne chance|good luck)/, "🍀"],
-    [/(ok|d'accord|dac|compris|exact)/, "👍"],
-    [/(waouh|wow|incroyable|magnifique)/, "🤩"],
-    [/(triste|désolé|desole|pardon)/, "❤️"],
+    [/\b(bonjour|salut|slt|hello|coucou)\b/, "👋"],
+    [/\b(merci|thanks|thank you|thx)\b/, "❤️"],
+    [/\b(mdr|mdrr|ptdr|lol)\b|😂|🤣/, "😂"],
+    [/\b(bravo|félicitations|felicitations|gg)\b/, "🔥"],
+    [/\b(bonne nuit|good night)\b/, "🌙"],
+    [/\b(bonne chance|good luck)\b/, "🍀"],
+    [/\b(ok|d'accord|dac|compris|exact)\b/, "👍"],
+    [/\b(waouh|wow|incroyable|magnifique)\b/, "🤩"],
+    [/\b(triste|désolé|desole|pardon)\b/, "❤️"],
     [/^[❤️💔😂🤣😍🔥👍👎👏🎉🤩😎🥳]+$/, "🔥"]
   ];
   for (const [pattern, emoji] of rules) {
@@ -137,7 +135,7 @@ async function messageHandler(sock, msg) {
 
     if (!text.startsWith(current.prefix)) return;
 
-    const args = text.slice(current.prefix.length).trim().split(/s+/);
+    const args = text.slice(current.prefix.length).trim().split(/\s+/);
     const commandName = args[0]?.toLowerCase();
     if (!commandName) return;
 
