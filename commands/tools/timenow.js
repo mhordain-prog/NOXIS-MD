@@ -1,0 +1,1 @@
+module.exports={name:"timenow",aliases:["time"],category:"tools",description:"Afficher l'heure actuelle",async execute(sock,msg){const jid=msg.key.remoteJid;return sock.sendMessage(jid,{text:"🕒 "+new Intl.DateTimeFormat("fr-FR",{timeStyle:"medium"}).format(new Date())});}};
