@@ -1,0 +1,1 @@
+module.exports={name:"date",aliases:["today"],category:"tools",description:"Afficher la date actuelle",async execute(sock,msg){const jid=msg.key.remoteJid;return sock.sendMessage(jid,{text:"📅 "+new Intl.DateTimeFormat("fr-FR",{dateStyle:"full"}).format(new Date())});}};
