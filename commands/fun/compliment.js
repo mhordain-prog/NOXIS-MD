@@ -1,0 +1,1 @@
+module.exports={name:"compliment",aliases:["complimenter"],category:"fun",description:"Envoyer un compliment",async execute(sock,msg){const jid=msg.key.remoteJid;const a=["Tu as de bonnes idées.","Ton énergie est positive.","Continue comme ça, tu progresses."];return sock.sendMessage(jid,{text:"✨ "+a[Math.floor(Math.random()*a.length)]});}};
