@@ -79,6 +79,16 @@ async function messageHandler(sock, msg) {
     permissionMiddleware.setRuntimeOwner(sock);
 
     const sender = msg.key.remoteJid;
+    const connectedId = String(sock.user?.id || "").split(":")[0];
+    const senderId = String(sender || "").split(":")[0];
+
+    // Le chat "Vous" (self-chat) est géré directement par WhatsApp.
+    // Baileys peut produire des messages "En attente de ce message" lorsqu'un bot
+    // renvoie un message chiffré vers son propre compte. On ignore donc le self-chat.
+    if (msg.key.fromMe && senderId && connectedId && senderId === connectedId) {
+      return;
+    }
+
     const isGroup = msg.key.remoteJid?.endsWith("@g.us");
     const senderNumber = msg.key.participant || sender;
     const baseSettings = settings.get(isGroup ? sender : "global");
