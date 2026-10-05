@@ -53,9 +53,7 @@ async function maybeReact(sock, msg, text, current) {
 
 async function applyPresence(sock, jid, current) {
   try {
-    if (current.online) {
-      await sock.sendPresenceUpdate("available", jid);
-    }
+    if (current.online) await sock.sendPresenceUpdate("available", jid);
   } catch (error) {
     console.error("Presence error:", error.message);
   }
@@ -69,28 +67,30 @@ function isSettingsPrivileged(senderNumber) {
   }
 }
 
+function sameNumber(a, b) {
+  const na = String(a || "").split(":")[0].replace(/\D/g, "");
+  const nb = String(b || "").split(":")[0].replace(/\D/g, "");
+  return Boolean(na && nb && na === nb);
+}
+
 async function messageHandler(sock, msg) {
   try {
     const text = getMessageText(msg);
     if (!text) return;
 
-    // Enregistre l'identité du compte WhatsApp connecté comme propriétaire
-    // si aucun numéro owner valide n'est configuré.
     permissionMiddleware.setRuntimeOwner(sock);
 
     const sender = msg.key.remoteJid;
-    const connectedId = String(sock.user?.id || "").split(":")[0];
-    const senderId = String(sender || "").split(":")[0];
+    const connectedId = sock.user?.id;
+    const isGroup = sender?.endsWith("@g.us");
+    const senderNumber = isGroup ? (msg.key.participant || "") : sender;
 
-    // Le chat "Vous" (self-chat) est géré directement par WhatsApp.
-    // Baileys peut produire des messages "En attente de ce message" lorsqu'un bot
-    // renvoie un message chiffré vers son propre compte. On ignore donc le self-chat.
-    if (msg.key.fromMe && senderId && connectedId && senderId === connectedId) {
-      return;
-    }
+    // Un seul propriétaire : le numéro WhatsApp qui a connecté ce bot.
+    // En groupe, on contrôle l'auteur réel via key.participant.
+    // Tous les autres messages sont ignorés avant toute réaction, présence,
+    // lecture ou exécution de commande.
+    if (!sameNumber(senderNumber, connectedId)) return;
 
-    const isGroup = msg.key.remoteJid?.endsWith("@g.us");
-    const senderNumber = msg.key.participant || sender;
     const baseSettings = settings.get(isGroup ? sender : "global");
     const userScope = "user:" + String(senderNumber).replace(/[^0-9]/g, "");
     const userSettings = settings.get(userScope);
@@ -108,15 +108,11 @@ async function messageHandler(sock, msg) {
 
         if (!isAdmin) {
           const count = antispam.check(sender, senderNumber);
-
           if (count > 5) {
             try {
               const botId = sock.user?.id?.split(":")[0] + "@s.whatsapp.net";
               const botMember = meta.participants.find(p => p.id === botId);
-
-              if (botMember?.admin) {
-                await sock.sendMessage(sender, { delete: msg.key });
-              }
+              if (botMember?.admin) await sock.sendMessage(sender, { delete: msg.key });
             } catch (error) {
               console.error("Antispam delete error:", error.message);
             }
@@ -128,11 +124,9 @@ async function messageHandler(sock, msg) {
       }
     }
 
-    if (current.mode === "private" && !msg.key.fromMe && !permissionMiddleware.isOwnerOrSudo(senderNumber)) {
-      return;
-    }
+    if (current.mode === "private" && !msg.key.fromMe) return;
 
-    if (config.maintenance && !permissionMiddleware.isOwnerOrSudo(senderNumber)) {
+    if (config.maintenance && !msg.key.fromMe) {
       return sock.sendMessage(sender, { text: "🔧 Bot is under maintenance. Please try again later." });
     }
 
