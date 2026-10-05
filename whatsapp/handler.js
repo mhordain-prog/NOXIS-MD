@@ -21,15 +21,15 @@ function getMessageText(msg) {
 function reactionFor(text) {
   const value = text.trim().toLowerCase();
   const rules = [
-    [/\b(bonjour|salut|slt|hello|coucou)\b/, "👋"],
-    [/\b(merci|thanks|thank you|thx)\b/, "❤️"],
-    [/\b(mdr|mdrr|ptdr|lol)\b|😂|🤣/, "😂"],
-    [/\b(bravo|félicitations|felicitations|gg)\b/, "🔥"],
-    [/\b(bonne nuit|good night)\b/, "🌙"],
-    [/\b(bonne chance|good luck)\b/, "🍀"],
-    [/\b(ok|d'accord|dac|compris|exact)\b/, "👍"],
-    [/\b(waouh|wow|incroyable|magnifique)\b/, "🤩"],
-    [/\b(triste|désolé|desole|pardon)\b/, "❤️"],
+    [/(bonjour|salut|slt|hello|coucou)/, "👋"],
+    [/(merci|thanks|thank you|thx)/, "❤️"],
+    [/(mdr|mdrr|ptdr|lol)|😂|🤣/, "😂"],
+    [/(bravo|félicitations|felicitations|gg)/, "🔥"],
+    [/(bonne nuit|good night)/, "🌙"],
+    [/(bonne chance|good luck)/, "🍀"],
+    [/(ok|d'accord|dac|compris|exact)/, "👍"],
+    [/(waouh|wow|incroyable|magnifique)/, "🤩"],
+    [/(triste|désolé|desole|pardon)/, "❤️"],
     [/^[❤️💔😂🤣😍🔥👍👎👏🎉🤩😎🥳]+$/, "🔥"]
   ];
   for (const [pattern, emoji] of rules) {
@@ -65,16 +65,7 @@ async function applyPresence(sock, jid, current) {
 
 function isSettingsPrivileged(senderNumber) {
   try {
-    const s = settings.get("global");
-    const owner = String(s.ownernumber || config.owner || "").replace(/\D/g, "");
-    const sender = String(senderNumber || "").split(":")[0].replace(/\D/g, "");
-    if (owner && sender === owner) return true;
-
-    const file = path.join(__dirname, "../data/access.json");
-    const access = fs.readJsonSync(file);
-    return (access.sudo || []).some(jid =>
-      String(jid).split("@")[0].replace(/\D/g, "") === sender
-    );
+    return permissionMiddleware.isOwnerOrSudo(senderNumber);
   } catch {
     return false;
   }
@@ -84,6 +75,10 @@ async function messageHandler(sock, msg) {
   try {
     const text = getMessageText(msg);
     if (!text) return;
+
+    // Enregistre l'identité du compte WhatsApp connecté comme propriétaire
+    // si aucun numéro owner valide n'est configuré.
+    permissionMiddleware.setRuntimeOwner(sock);
 
     const sender = msg.key.remoteJid;
     const isGroup = msg.key.remoteJid?.endsWith("@g.us");
@@ -129,7 +124,7 @@ async function messageHandler(sock, msg) {
       return;
     }
 
-    if (config.maintenance && senderNumber !== config.owner) {
+    if (config.maintenance && !permissionMiddleware.isOwnerOrSudo(senderNumber)) {
       return sock.sendMessage(sender, { text: "🔧 Bot is under maintenance. Please try again later." });
     }
 
@@ -142,7 +137,7 @@ async function messageHandler(sock, msg) {
 
     if (!text.startsWith(current.prefix)) return;
 
-    const args = text.slice(current.prefix.length).trim().split(/\s+/);
+    const args = text.slice(current.prefix.length).trim().split(/s+/);
     const commandName = args[0]?.toLowerCase();
     if (!commandName) return;
 
