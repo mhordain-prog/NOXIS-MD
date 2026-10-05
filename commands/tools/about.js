@@ -1,0 +1,1 @@
+const config=require("../../config");module.exports={name:"about",aliases:["botinfo"],category:"system",description:"Afficher les informations du bot",async execute(sock,msg){const jid=msg.key.remoteJid;return sock.sendMessage(jid,{text:"🤖 NOXIS-MD\n👑 Owner : Hordain Madila\n🏷️ Version : "+(config.version||"N/A")+"\n⚙️ Moteur : Baileys"});}};
