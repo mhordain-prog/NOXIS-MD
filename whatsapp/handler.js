@@ -85,11 +85,15 @@ async function messageHandler(sock, msg) {
     const isGroup = sender?.endsWith("@g.us");
     const senderNumber = isGroup ? (msg.key.participant || "") : sender;
 
-    // Un seul propriétaire : le numéro WhatsApp qui a connecté ce bot.
-    // En groupe, on contrôle l'auteur réel via key.participant.
-    // Tous les autres messages sont ignorés avant toute réaction, présence,
-    // lecture ou exécution de commande.
-    if (!sameNumber(senderNumber, connectedId)) return;
+    // Le numéro qui a connecté WhatsApp reste le seul propriétaire
+    // autorisé à utiliser les commandes et réactions du bot.
+    // Exception importante : en groupe, la protection AntiLink/AntiSpam
+    // doit pouvoir inspecter les messages des autres membres AVANT ce filtre.
+    const isConnectedOwner = sameNumber(senderNumber, connectedId);
+
+    // En conversation privée, seuls les messages du compte connecté
+    // sont traités. En groupe, on laisse d'abord passer la protection.
+    if (!isGroup && !isConnectedOwner) return;
 
     const baseSettings = settings.get(isGroup ? sender : "global");
     const userScope = "user:" + String(senderNumber).replace(/[^0-9]/g, "");
@@ -98,8 +102,15 @@ async function messageHandler(sock, msg) {
 
     if (isGroup && !msg.key.fromMe) {
       await activityTracker.record(sender, senderNumber);
+
+      // AntiLink/AntiSpam doit fonctionner pour tous les membres du groupe,
+      // pas uniquement pour le propriétaire du bot.
       const blocked = await groupProtection.protectMessage(sock, msg, text);
       if (blocked) return;
+
+      // Après la protection, seul le numéro qui a connecté le bot peut
+      // continuer vers les réactions, commandes et autres fonctions.
+      if (!isConnectedOwner) return;
 
       if (current.antispam) {
         const meta = await sock.groupMetadata(sender);
