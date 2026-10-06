@@ -2,111 +2,148 @@ const config = require("../../config");
 const settings = require("../../lib/settingsStore");
 const commandLoader = require("../../lib/commandLoader");
 
+const labels = {
+  group: "👥 GESTION DU GROUPE",
+  admin: "🛡️ ADMINISTRATION",
+  security: "🔐 SÉCURITÉ",
+  system: "⚙️ SYSTÈME",
+  ai: "🧠 INTELLIGENCE ARTIFICIELLE",
+  anime: "🎭 ANIME",
+  audio: "🎵 AUDIO",
+  download: "📥 MÉDIAS & TÉLÉCHARGEMENTS",
+  downloader: "📥 DOWNLOADER",
+  search: "🔎 RECHERCHE",
+  media: "🖼️ MÉDIAS",
+  tools: "🛠️ OUTILS",
+  fun: "🎉 FUN / DIVERTISSEMENT",
+  games: "🎮 JEUX",
+  education: "📚 ÉDUCATION",
+  internet: "🌐 INTERNET",
+  profile: "👤 PROFIL",
+  owner: "👑 OWNER",
+  settings: "⚙️ RÉGLAGES",
+  design: "🎨 DESIGN",
+  developer: "💻 DÉVELOPPEUR",
+  economy: "💰 ÉCONOMIE",
+  bank: "🏦 BANQUE",
+  cloud: "☁️ CLOUD",
+  main: "🏠 PRINCIPAL",
+  other: "📦 AUTRES"
+};
+
+const order = [
+  "main", "group", "admin", "security", "system", "ai", "anime", "audio",
+  "download", "downloader", "search", "media", "tools", "fun", "games",
+  "education", "internet", "profile", "owner", "settings", "design",
+  "developer", "economy", "bank", "cloud", "other"
+];
+
+async function getBotPhoto(sock) {
+  try {
+    if (!sock.user?.id) return null;
+    return await sock.profilePictureUrl(sock.user.id, "image");
+  } catch {
+    return null;
+  }
+}
+
+function buildMenu(commands, prefix) {
+  const groups = {};
+
+  for (const command of commands) {
+    const category = String(command.category || "other").toLowerCase();
+    if (!groups[category]) groups[category] = [];
+    groups[category].push(command);
+  }
+
+  const categories = [
+    ...order.filter(c => groups[c]?.length),
+    ...Object.keys(groups).filter(c => !order.includes(c))
+  ];
+
+  const sections = [];
+
+  for (const category of categories) {
+    const names = [...new Set(groups[category].map(c => c.name))]
+      .filter(Boolean)
+      .sort((a, b) => String(a).localeCompare(String(b), "fr"));
+
+    sections.push(
+      "╭━━━〔 " + (labels[category] || category.toUpperCase()) + " 〕━━━╮\n" +
+      names.map(name => "│ • " + prefix + name).join("\n") +
+      "\n╰━━━━━━━━━━━━━━━━━━━━╯"
+    );
+  }
+
+  const runtime = Math.floor(process.uptime());
+  const h = Math.floor(runtime / 3600);
+  const m = Math.floor((runtime % 3600) / 60);
+  const s = runtime % 60;
+  const mode = String(config.botMode || "public").toUpperCase();
+
+  return [
+    "꧁༒☬ *NOXIS-MD* ☬༒꧂",
+    "",
+    "👑 *OWNER:* " + (config.owner || "Hordain Madila"),
+    "⚡ *COMMANDES:* " + commands.length,
+    "⏱️ *RUNTIME:* " + h + "h " + m + "m " + s + "s",
+    "🔰 *PREFIX:* " + prefix,
+    "🌐 *MODE:* " + mode,
+    "📦 *VERSION:* " + (config.version || "N/A"),
+    "",
+    "╭━━━〔 ⚡ NOXIS — MENU COMPLET 〕━━━╮",
+    ...sections,
+    "╰━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━╯"
+  ].join("\n\n");
+}
+
 module.exports = {
   name: "menu",
-  aliases: ["help", "cmd", "commands"],
+  aliases: ["help", "cmd", "commands", "aide", "commandes"],
   category: "system",
-  description: "Menu principal complet, classé par catégorie",
+  description: "Afficher le menu complet NOXIS-MD en un seul menu",
 
   async execute(sock, msg, args) {
     const jid = msg.key.remoteJid;
+    if (!commandLoader.getCommands().length) await commandLoader.loadCommands();
+
     const commands = commandLoader.getCommands();
-    const groups = {};
-
-    for (const command of commands) {
-      const category = String(command.category || "other").toLowerCase();
-      if (!groups[category]) groups[category] = [];
-      groups[category].push(command);
-    }
-
-    const labels = {
-      group: "👥 GESTION DU GROUPE", admin: "🛡️ ADMINISTRATION", security: "🔐 SÉCURITÉ",
-      system: "⚙️ SYSTÈME", ai: "🧠 INTELLIGENCE ARTIFICIELLE", downloader: "📥 TÉLÉCHARGEMENT",
-      download: "📥 MÉDIAS & TÉLÉCHARGEMENTS", search: "🔎 RECHERCHE", anime: "🎭 ANIME",
-      media: "🖼️ MÉDIAS", tools: "🛠️ OUTILS", fun: "🎉 FUN / DIVERTISSEMENT",
-      games: "🎮 JEUX", education: "📚 ÉDUCATION", internet: "🌐 INTERNET", profile: "👤 PROFIL",
-      owner: "👑 OWNER", settings: "⚙️ RÉGLAGES", design: "🎨 DESIGN", developer: "💻 DÉVELOPPEUR",
-      economy: "💰 ÉCONOMIE", bank: "🏦 BANQUE", cloud: "☁️ CLOUD", other: "📦 AUTRES"
-    };
-
+    const currentSettings = settings.get("global") || {};
+    const prefix = currentSettings.prefix || config.prefix || ".";
     const query = String(args?.[0] || "").toLowerCase().trim();
 
     if (query) {
       const command = commandLoader.getCommand(query);
       if (command) {
         const aliases = Array.isArray(command.aliases) && command.aliases.length
-          ? command.aliases.map(a => "." + a).join(", ") : "Aucun";
+          ? command.aliases.map(a => prefix + a).join(", ")
+          : "Aucun";
         return sock.sendMessage(jid, {
           text:
-            "📖 *AIDE — ." + command.name + "*\n\n" +
+            "📖 *AIDE — " + prefix + command.name + "*\n\n" +
             "📝 Description : " + (command.description || "Aucune description.") + "\n" +
             "📂 Catégorie : " + (command.category || "other") + "\n" +
             "🔁 Alias : " + aliases + "\n\n" +
-            "💡 Utilisation : ." + command.name
+            "💡 Utilisation : " + prefix + command.name
         });
       }
+    }
 
-      const category = query === "groupe" ? "group" : query;
-      if (groups[category]) {
-        const names = [...new Set(groups[category].map(c => c.name))].sort();
-        return sock.sendMessage(jid, {
-          text:
-            "📂 *" + (labels[category] || category.toUpperCase()) + "*\n\n" +
-            names.map((n, i) => (i + 1) + ". ." + n).join("\n") +
-            "\n\n💡 .menu pour afficher toutes les catégories."
-        });
+    const menuText = buildMenu(commands, prefix);
+    const photo = await getBotPhoto(sock);
+
+    // La photo est uniquement l'en-tête visuel; le menu complet reste dans un seul message texte.
+    if (photo) {
+      try {
+        await sock.sendMessage(jid, {
+          image: { url: photo },
+          caption: "꧁༒☬ *NOXIS-MD* ☬༒꧂\n⚡ *MENU COMPLET*"
+        }, { quoted: msg });
+      } catch (error) {
+        console.error("NOXIS menu photo error:", error.message);
       }
-
-      return sock.sendMessage(jid, {
-        text: "❌ Commande ou catégorie introuvable : " + query + "\n💡 Essaie .menu"
-      });
     }
 
-    const order = [
-      "group","admin","security","system","ai","download","downloader","search","anime",
-      "media","tools","fun","games","education","internet","profile","owner","settings",
-      "design","developer","economy","bank","cloud","other"
-    ];
-
-    const sections = [];
-    for (const category of order) {
-      const list = groups[category];
-      if (!list?.length) continue;
-      const names = [...new Set(list.map(c => c.name))]
-        .sort((a, b) => a.localeCompare(b));
-
-      sections.push(
-        "╭━━━〔 " + (labels[category] || category.toUpperCase()) + " 〕━━━╮\n" +
-        names.map((name, i) => (i + 1) + ". ." + name).join("\n") +
-        "\n╰━━━━━━━━━━━━━━━━━━━━╯"
-      );
-    }
-
-    const runtime = Math.floor(process.uptime());
-    const h = Math.floor(runtime / 3600);
-    const m = Math.floor((runtime % 3600) / 60);
-    const s = runtime % 60;
-    const currentSettings = settings.get("global") || {};
-    const prefix = currentSettings.prefix || ".";
-
-    const header =
-      "🤖 *NOXIS-MD — MENU PRINCIPAL*\n" +
-      "👑 Owner : Hordain Madila\n" +
-      "📦 Commandes actives : " + commands.length + "\n" +
-      "⏱️ Uptime : " + h + "h " + m + "m " + s + "s\n" +
-      "🏷️ Version : " + config.version + "\n" +
-      "⚙️ Préfixe : " + prefix + "\n\n";
-
-    const menuText = header +
-      "📚 *MENU COMPLET*\n\n" +
-      sections.join("\n\n");
-
-    if (menuText.length > 60000) {
-      return sock.sendMessage(jid, {
-        text: header + "⚠️ Le menu complet dépasse la taille maximale d'un seul message. Utilise .menu <catégorie> pour afficher une catégorie."
-      });
-    }
-
-    return sock.sendMessage(jid, { text: menuText });
+    return sock.sendMessage(jid, { text: menuText }, { quoted: msg });
   }
 };
