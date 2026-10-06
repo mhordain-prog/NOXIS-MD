@@ -356,10 +356,28 @@ async function startWhatsApp() {
       }
     });
 
-    async function sendMemberEventMessage(groupId, user, type, groupName, groupSettings) {
+    async function sendMemberEventMessage(groupId, user, type, groupName, groupSettings, memberNumber) {
       const isWelcome = type === "welcome";
-      const template = isWelcome ? groupSettings.welcomeText : groupSettings.goodbyeText;
-      const caption = renderTemplate(template, user, groupName);
+      const mention = "@" + String(user || "").split("@")[0];
+      const now = new Date();
+      const date = new Intl.DateTimeFormat("fr-FR", {
+        day: "2-digit",
+        month: "long",
+        year: "numeric"
+      }).format(now);
+      const time = new Intl.DateTimeFormat("fr-FR", {
+        hour: "2-digit",
+        minute: "2-digit",
+        hour12: false
+      }).format(now);
+
+      const rankLine = memberNumber
+        ? "\n👥 Tu es le *" + memberNumber + "ème* membre du groupe"
+        : "";
+
+      const caption = isWelcome
+        ? "╭─❖ *BIENVENUE* ❖─╮\n\n👋 Bienvenue " + mention + " !\n\n🏠 Groupe : *" + groupName + "*" + rankLine + "\n📅 Arrivée le : " + date + "\n⏰ À : " + time + "\n\n📜 N'hésite pas à lire les règles avec .rules\n╰────────────────╯"
+        : "╭─❖ *AU REVOIR* ❖─╮\n\n👋 Au revoir " + mention + " !\n\n🏠 Groupe : *" + groupName + "*" + "\n📅 Départ le : " + date + "\n⏰ À : " + time + "\n\n📜 Bonne continuation !\n╰────────────────╯";
 
       try {
         const photoUrl = await sock.profilePictureUrl(user, "image");
@@ -392,10 +410,11 @@ async function startWhatsApp() {
 
         const metadata = await sock.groupMetadata(id);
         const groupName = metadata?.subject || id;
+        const memberCount = metadata?.participants?.length || 0;
 
         if (action === "add" && groupSettings.welcome) {
           for (const user of participants || []) {
-            await sendMemberEventMessage(id, user, "welcome", groupName, groupSettings);
+            await sendMemberEventMessage(id, user, "welcome", groupName, groupSettings, memberCount);
           }
         }
 
@@ -408,6 +427,7 @@ async function startWhatsApp() {
         console.error("Welcome/goodbye error:", error.message);
       }
     });
+
 
     sock.ev.on("call", async (calls) => {
       const globalSettings = settings.get("global");
