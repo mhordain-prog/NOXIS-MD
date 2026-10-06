@@ -30,9 +30,9 @@ module.exports = {
     const current = settings.get(jid);
     if (action === "status") {
       return sock.sendMessage(jid, {
-        text: "🛡️ ANTISPAM\n\n" +
-          "Statut : " + (current.antispam ? "🟢 ACTIVÉ" : "🔴 DÉSACTIVÉ") +
-          "\nProtection : 6 messages en 8 secondes"
+        text: current.antispam
+          ? "◆━━━━━━━━━━━━━━◆\n   ꧁ 🚫 𝙰𝙽𝚃𝙸𝚂𝙿𝙰𝙼 ꧂\n◆━━━━━━━━━━━━━━◆\n» sᴛᴀᴛᴜᴛ : ✅ ᴀᴄᴛɪᴠᴇ́\n꧁━━━━━━━━━━━━━━꧂"
+          : "◆━━━━━━━━━━━━━━◆\n   ꧁ 🚫 𝙰𝙽𝚃𝙸𝚂𝙿𝙰𝙼 ꧂\n◆━━━━━━━━━━━━━━◆\n» sᴛᴀᴛᴜᴛ : ❌ ᴅᴇ́sᴀᴄᴛɪᴠᴇ́\n꧁━━━━━━━━━━━━━━꧂"
       });
     }
 
@@ -41,8 +41,8 @@ module.exports = {
 
     return sock.sendMessage(jid, {
       text: enabled
-        ? "🛡️ Anti-spam activé. Les rafales de messages des membres non-admins seront limitées."
-        : "🛡️ Anti-spam désactivé."
+        ? "◆━━━━━━━━━━━━━━◆\n   ꧁ 🚫 𝙰𝙽𝚃𝙸𝚂𝙿𝙰𝙼 ꧂\n◆━━━━━━━━━━━━━━◆\n» sᴛᴀᴛᴜᴛ : ✅ ᴀᴄᴛɪᴠᴇ́\n꧁━━━━━━━━━━━━━━꧂"
+        : "◆━━━━━━━━━━━━━━◆\n   ꧁ 🚫 𝙰𝙽𝚃𝙸𝚂𝙿𝙰𝙼 ꧂\n◆━━━━━━━━━━━━━━◆\n» sᴛᴀᴛᴜᴛ : ❌ ᴅᴇ́sᴀᴄᴛɪᴠᴇ́\n꧁━━━━━━━━━━━━━━꧂"
     });
   }
 };
