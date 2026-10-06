@@ -2,16 +2,12 @@ FROM node:20-alpine
 
 WORKDIR /app
 
-# Install system dependencies required by npm packages
-RUN apk add --no-cache git python3
+# Install system dependencies required by npm packages and audio conversion
+RUN apk add --no-cache git python3 ffmpeg
 
-# Copy package files
 COPY package*.json ./
-
-# Install dependencies
 RUN npm install --production
 
-# Copy application files
 COPY . .
 
 EXPOSE 3000
