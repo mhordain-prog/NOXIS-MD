@@ -31,7 +31,7 @@
     "mongodb": "^6.8.0",
     "pg": "^8.13.0",
     "yt-search": "^2.13.1",
-    "youtube-dl-exec": "^3.0.18"
+    "youtube-dl-exec": "^3.1.17"
   },
   "devDependencies": {
     "nodemon": "^3.1.0"
