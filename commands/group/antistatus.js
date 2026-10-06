@@ -2,7 +2,7 @@ const settings = require("../../lib/settingsStore");
 
 module.exports = {
   name: "antistatus",
-  aliases: ["statusprotection", "status"],
+  aliases: ["statusprotection"],
   category: "security",
   description: "Activer, désactiver ou vérifier la lecture et les réactions aux statuts",
 
