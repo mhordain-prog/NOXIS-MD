@@ -33,7 +33,9 @@ module.exports = {
 
     if (action === 'status') {
       return sock.sendMessage(jid, {
-        text: '🛡️ ANTI-LINK : ' + (current.antilink ? '🟢 ACTIVÉ' : '🔴 DÉSACTIVÉ')
+        text: current.antilink
+          ? '◆━━━━━━━━━━━━━━◆\n   ꧁ 🔗 𝙰𝙽𝚃𝙸𝙻𝙸𝙽𝙺 ꧂\n◆━━━━━━━━━━━━━━◆\n» sᴛᴀᴛᴜᴛ : ✅ ᴀᴄᴛɪᴠᴇ́\n꧁━━━━━━━━━━━━━━꧂'
+          : '◆━━━━━━━━━━━━━━◆\n   ꧁ 🔗 𝙰𝙽𝚃𝙸𝙻𝙸𝙽𝙺 ꧂\n◆━━━━━━━━━━━━━━◆\n» sᴛᴀᴛᴜᴛ : ❌ ᴅᴇ́sᴀᴄᴛɪᴠᴇ́\n꧁━━━━━━━━━━━━━━꧂'
       });
     }
 
@@ -42,8 +44,8 @@ module.exports = {
 
     return sock.sendMessage(jid, {
       text: enabled
-        ? '🛡️ ANTI-LINK activé. Les liens des membres non-administrateurs seront supprimés automatiquement.'
-        : '🛡️ ANTI-LINK désactivé.'
+        ? '◆━━━━━━━━━━━━━━◆\n   ꧁ 🔗 𝙰𝙽𝚃𝙸𝙻𝙸𝙽𝙺 ꧂\n◆━━━━━━━━━━━━━━◆\n» sᴛᴀᴛᴜᴛ : ✅ ᴀᴄᴛɪᴠᴇ́\n꧁━━━━━━━━━━━━━━꧂'
+        : '◆━━━━━━━━━━━━━━◆\n   ꧁ 🔗 𝙰𝙽𝚃𝙸𝙻𝙸𝙽𝙺 ꧂\n◆━━━━━━━━━━━━━━◆\n» sᴛᴀᴛᴜᴛ : ❌ ᴅᴇ́sᴀᴄᴛɪᴠᴇ́\n꧁━━━━━━━━━━━━━━꧂'
     });
   }
 };
