@@ -4,6 +4,7 @@ const permissionMiddleware = require("../lib/permissionMiddleware");
 const activityTracker = require("../lib/activityTracker");
 const antispam = require("../lib/antispam");
 const groupProtection = require("../lib/groupProtection");
+const moderationStore = require("../lib/moderationStore");
 const settings = require("../lib/settingsStore");
 
 let commandsLoaded = false;
@@ -107,6 +108,10 @@ async function messageHandler(sock, msg) {
       // pas uniquement pour le propriétaire du bot.
       const blocked = await groupProtection.protectMessage(sock, msg, text);
       if (blocked) return;
+
+      // Blocage local NOXIS : la protection de groupe s’exécute d’abord,
+      // puis les messages du numéro bloqué ne sont plus traités par le bot.
+      if (moderationStore.isBlocked(senderNumber)) return;
 
       // Après la protection, seul le numéro qui a connecté le bot peut
       // continuer vers les réactions, commandes et autres fonctions.
