@@ -60,8 +60,15 @@ module.exports = {
       return sock.sendMessage(jid, { text: `Indique un motif.\nExemple : .ban ${action} ${number} spam` }, { quoted: msg });
     }
 
-    const evidence = msg.message?.extendedTextMessage?.contextInfo?.quotedMessage
-      ? "Message cité fourni dans la conversation"
+    const quoted = msg.message?.extendedTextMessage?.contextInfo?.quotedMessage;
+    const evidence = quoted
+      ? String(
+          quoted.conversation ||
+          quoted.extendedTextMessage?.text ||
+          quoted.imageMessage?.caption ||
+          quoted.videoMessage?.caption ||
+          "Message cité (contenu non textuel)"
+        ).slice(0, 1500)
       : "";
 
     const result = moderation.addReport(number, reason, senderNumber, evidence);
