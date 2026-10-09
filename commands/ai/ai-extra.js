@@ -1,35 +1,32 @@
 const config = require("../../config");
-const axios = require("axios");
-
-async function ask(prompt, system) {
-  if (!config.openaiKey) return null;
-  const r = await axios.post(
-    "https://api.openai.com/v1/chat/completions",
-    {
-      model: "gpt-4o-mini",
-      messages: [
-        { role: "system", content: system || "Tu es NOXIS-MD, assistant utile et concis. Réponds en français sauf demande contraire." },
-        { role: "user", content: prompt }
-      ],
-      temperature: 0.4
-    },
-    { headers: { Authorization: "Bearer " + config.openaiKey }, timeout: 30000 }
-  );
-  return r.data?.choices?.[0]?.message?.content || null;
-}
+const { askAI, getUserErrorMessage } = require("../../lib/aiClient");
 
 function command(name, aliases, instruction, usage) {
   return {
-    name, aliases, category: "ai", description: instruction,
+    name,
+    aliases,
+    category: "ai",
+    description: instruction,
     async execute(sock, msg, args, ctx) {
-      const q = args.join(" ").trim();
-      if (!q) return sock.sendMessage(ctx.sender, { text: "🧠 Utilisation : " + config.prefix + usage });
-      if (!config.openaiKey) return sock.sendMessage(ctx.sender, { text: "🧠 IA non configurée : ajoute OPENAI_API_KEY sur le serveur." });
+      const question = args.join(" ").trim();
+      const to = ctx?.sender || msg.key.remoteJid;
+      if (!question) {
+        return sock.sendMessage(to, {
+          text: "🧠 Utilisation : " + (config.prefix || ".") + usage
+        }, { quoted: msg });
+      }
+
       try {
-        const answer = await ask(instruction + "\n\nDemande : " + q);
-        return sock.sendMessage(ctx.sender, { text: "🧠 " + (answer || "Aucune réponse.") });
-      } catch (e) {
-        return sock.sendMessage(ctx.sender, { text: "❌ Service IA indisponible." });
+        const answer = await askAI(instruction + "\n\nDemande : " + question);
+        const chunks = answer.match(/[\s\S]{1,3500}/g) || ["Aucune réponse."];
+        for (let i = 0; i < chunks.length; i++) {
+          await sock.sendMessage(to, {
+            text: (i === 0 ? "🧠 " : "") + chunks[i]
+          }, { quoted: i === 0 ? msg : undefined });
+        }
+      } catch (error) {
+        console.error("NOXIS AI command error:", error.code || error.message);
+        return sock.sendMessage(to, { text: getUserErrorMessage(error) }, { quoted: msg });
       }
     }
   };
