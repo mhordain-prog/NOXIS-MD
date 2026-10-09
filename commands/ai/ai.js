@@ -1,1 +1,32 @@
-const axios=require("axios");const config=require("../../config");module.exports={name:"ai",aliases:["gpt","ia"],category:"ai",description:"Assistant IA",async execute(sock,msg,args,c){const q=c.args.join(" ");if(!q)return sock.sendMessage(c.sender,{text:"🧠 Utilisation: .ai ta question"});if(!config.openaiKey)return sock.sendMessage(c.sender,{text:"🧠 IA non configurée: ajoute OPENAI_API_KEY dans Render."});try{const r=await axios.post("https://api.openai.com/v1/chat/completions",{model:"gpt-4o-mini",messages:[{role:"user",content:q}]},{headers:{Authorization:"Bearer "+config.openaiKey}});await sock.sendMessage(c.sender,{text:"🧠 "+r.data.choices[0].message.content});}catch(e){await sock.sendMessage(c.sender,{text:"❌ Service IA indisponible."});}}};
+const config = require("../../config");
+const { askAI, getUserErrorMessage } = require("../../lib/aiClient");
+
+module.exports = {
+  name: "ai",
+  aliases: ["gpt", "ia"],
+  category: "ai",
+  description: "Pose une question à l'assistant IA NOXIS-MD",
+  async execute(sock, msg, args, ctx) {
+    const question = (ctx?.args || args || []).join(" ").trim();
+    const to = ctx?.sender || msg.key.remoteJid;
+
+    if (!question) {
+      return sock.sendMessage(to, {
+        text: "🧠 *NOXIS-MD • IA*\n\nPose-moi une question.\nExemple : " + (config.prefix || ".") + "ai explique la photosynthèse"
+      }, { quoted: msg });
+    }
+
+    try {
+      const answer = await askAI(question);
+      const chunks = answer.match(/[\s\S]{1,3500}/g) || ["Aucune réponse."];
+      for (let i = 0; i < chunks.length; i++) {
+        await sock.sendMessage(to, {
+          text: (i === 0 ? "🧠 *NOXIS-MD • IA*\n\n" : "") + chunks[i]
+        }, { quoted: i === 0 ? msg : undefined });
+      }
+    } catch (error) {
+      console.error("NOXIS AI command error:", error.code || error.message);
+      return sock.sendMessage(to, { text: getUserErrorMessage(error) }, { quoted: msg });
+    }
+  }
+};
