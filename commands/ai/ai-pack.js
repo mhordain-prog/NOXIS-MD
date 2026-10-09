@@ -1,26 +1,23 @@
 const config = require("../../config");
-const axios = require("axios");
+const { askAI, getUserErrorMessage } = require("../../lib/aiClient");
 
-const send = (sock, to, text) => sock.sendMessage(to, { text });
+const send = (sock, to, text, msg) =>
+  sock.sendMessage(to, { text }, msg ? { quoted: msg } : undefined);
 
-async function ask(prompt) {
-  if (!config.openaiKey) return null;
-  const r = await axios.post(
-    "https://api.openai.com/v1/chat/completions",
-    {
-      model: "gpt-4o-mini",
-      messages: [
-        { role: "system", content: "Tu es NOXIS-MD, un assistant WhatsApp utile, clair et concis. Réponds en français sauf si l'utilisateur demande une autre langue." },
-        { role: "user", content: prompt }
-      ],
-      temperature: 0.4
-    },
-    {
-      headers: { Authorization: "Bearer " + config.openaiKey },
-      timeout: 30000
-    }
-  );
-  return r.data?.choices?.[0]?.message?.content || null;
+async function runCommand(sock, msg, args, ctx, instruction, usage, prefixText) {
+  const question = args.join(" ").trim();
+  const to = ctx?.sender || msg.key.remoteJid;
+  if (!question) return send(sock, to, `🧠 Utilisation : ${config.prefix || "."}${usage}`, msg);
+
+  try {
+    const answer = await askAI(
+      instruction ? instruction + "\n\nDemande : " + question : question
+    );
+    return send(sock, to, prefixText + answer, msg);
+  } catch (error) {
+    console.error("NOXIS AI command error:", error.code || error.message);
+    return send(sock, to, getUserErrorMessage(error), msg);
+  }
 }
 
 module.exports = [
@@ -30,15 +27,7 @@ module.exports = [
     category: "ai",
     description: "Pose une question à l'IA",
     async execute(sock, msg, args, ctx) {
-      const q = args.join(" ");
-      if (!q) return send(sock, ctx.sender, `🧠 Usage: ${config.prefix}ask ta question`);
-      if (!config.openaiKey) return send(sock, ctx.sender, "🧠 IA non configurée sur le serveur.");
-      try {
-        const answer = await ask(q);
-        return send(sock, ctx.sender, "🧠 " + answer);
-      } catch {
-        return send(sock, ctx.sender, "❌ Le service IA est momentanément indisponible.");
-      }
+      return runCommand(sock, msg, args, ctx, "", "ask ta question", "🧠 ");
     }
   },
   {
@@ -47,14 +36,9 @@ module.exports = [
     category: "ai",
     description: "Traduit un texte avec l'IA",
     async execute(sock, msg, args, ctx) {
-      const q = args.join(" ");
-      if (!q) return send(sock, ctx.sender, `🌍 Usage: ${config.prefix}translate anglais: bonjour`);
-      if (!config.openaiKey) return send(sock, ctx.sender, "🧠 IA non configurée sur le serveur.");
-      try {
-        return send(sock, ctx.sender, "🌍 " + await ask("Traduis précisément ce texte. Si une langue cible est indiquée, utilise-la. Texte: " + q));
-      } catch {
-        return send(sock, ctx.sender, "❌ Traduction indisponible.");
-      }
+      return runCommand(sock, msg, args, ctx,
+        "Traduis précisément ce texte. Si une langue cible est indiquée, utilise-la.",
+        "translate langue cible : texte", "🌍 ");
     }
   },
   {
@@ -63,14 +47,9 @@ module.exports = [
     category: "ai",
     description: "Résume un texte",
     async execute(sock, msg, args, ctx) {
-      const q = args.join(" ");
-      if (!q) return send(sock, ctx.sender, `📝 Usage: ${config.prefix}summarize ton texte`);
-      if (!config.openaiKey) return send(sock, ctx.sender, "🧠 IA non configurée sur le serveur.");
-      try {
-        return send(sock, ctx.sender, "📝 " + await ask("Résume ce texte en quelques points simples: " + q));
-      } catch {
-        return send(sock, ctx.sender, "❌ Résumé indisponible.");
-      }
+      return runCommand(sock, msg, args, ctx,
+        "Résume ce texte en quelques points simples.",
+        "summarize ton texte", "📝 ");
     }
   }
 ];

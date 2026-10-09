@@ -16,6 +16,7 @@ module.exports = {
   autoReact: process.env.AUTO_REACT !== "false",
 
   openaiKey: process.env.OPENAI_API_KEY || "",
+  openaiModel: process.env.OPENAI_MODEL || "gpt-4o-mini",
   imgurKey: process.env.IMGUR_API_KEY || "",
   youtubeKey: process.env.YOUTUBE_API_KEY || "",
 
