@@ -89,7 +89,10 @@ async function messageHandler(sock, msg) {
     // Le compte connecté reste autorisé, et le numéro OWNER_NUMBER
     // configuré peut également envoyer des commandes au bot.
     // En groupe, AntiLink/AntiSpam inspecte toujours les messages avant le filtre.
-    const isConnectedOwner = sameNumber(senderNumber, connectedId);
+    // Les messages envoyés par le compte connecté dans sa propre conversation
+    // (« Vous ») peuvent avoir un JID différent de sock.user.id selon WhatsApp.
+    // En privé, fromMe confirme que le message vient bien du compte connecté.
+    const isConnectedOwner = sameNumber(senderNumber, connectedId) || (!isGroup && msg.key.fromMe === true);
     const isConfiguredOwner = sameNumber(senderNumber, config.owner);
     const isOwner = isConnectedOwner || isConfiguredOwner;
 
