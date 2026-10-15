@@ -92,7 +92,7 @@ async function messageHandler(sock, msg) {
     // Les messages envoyés par le compte connecté dans sa propre conversation
     // (« Vous ») peuvent avoir un JID différent de sock.user.id selon WhatsApp.
     // En privé, fromMe confirme que le message vient bien du compte connecté.
-    const isConnectedOwner = sameNumber(senderNumber, connectedId) || (!isGroup && msg.key.fromMe === true);
+    const isConnectedOwner = msg.key.fromMe === true || sameNumber(senderNumber, connectedId);
     const isConfiguredOwner = sameNumber(senderNumber, config.owner);
     const isOwner = isConnectedOwner || isConfiguredOwner;
 
