@@ -166,32 +166,58 @@ async function startWhatsApp() {
     whatsappRegistered = !!state.creds?.registered;
     sock = makeWASocket(socketOptions);
     // Expose uniquement les messages déjà reçus et conservés en mémoire pour les commandes de modération.
-    sock.getRecentMessagesByParticipant = (jid, participants, limit = 20) => {
-      const wanted = new Set((Array.isArray(participants) ? participants : [participants])
-        .filter(Boolean).map(String));
-      const matchesIdentity = (value) => {
-        if (!value) return false;
-        const candidate = String(value);
-        if (wanted.has(candidate)) return true;
-        // Certaines versions de WhatsApp exposent le même membre en JID
-        // téléphone (@s.whatsapp.net) et en LID (@lid). Comparer les champs
-        // alternatifs fournis par Baileys évite de perdre ces correspondances.
-        return false;
-      };
-      return Array.from(messageCache.values())
-        .filter((item) => {
-          if (item?.key?.remoteJid !== jid || item?.key?.fromMe) return false;
-          const identities = [
-            item?.key?.participant,
-            item?.key?.participantAlt,
-            item?.key?.participantLid,
-            item?.participant,
-            item?.participantAlt
-          ].filter(Boolean);
-          return identities.some(matchesIdentity);
-        })
-        .slice(-Math.max(1, Number(limit) || 20))
-        .reverse();
+    // Historique minimal des clés de messages pour .deluser.
+    // PostgreSQL survit aux redémarrages; sans DATABASE_URL, le cache reste en mémoire.
+    if (authPool) {
+      await authPool.query(`
+        CREATE TABLE IF NOT EXISTS whatsapp_recent_group_messages (
+          remote_jid TEXT NOT NULL,
+          message_id TEXT NOT NULL,
+          participant TEXT,
+          participant_alt TEXT,
+          participant_lid TEXT,
+          message_key JSONB NOT NULL,
+          created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+          PRIMARY KEY (remote_jid, message_id)
+        );
+        CREATE INDEX IF NOT EXISTS whatsapp_recent_group_messages_lookup
+          ON whatsapp_recent_group_messages (remote_jid, created_at DESC);
+      `);
+    }
+
+    sock.getRecentMessagesByParticipant = async (jid, participants, limit = 20) => {
+      const wanted = [...new Set((Array.isArray(participants) ? participants : [participants])
+        .filter(Boolean).map(String))];
+      const safeLimit = Math.min(Math.max(Number(limit) || 20, 1), 20);
+      const matches = (item) => [
+        item?.key?.participant,
+        item?.key?.participantAlt,
+        item?.key?.participantLid,
+        item?.participant,
+        item?.participantAlt
+      ].some((identity) => identity && wanted.includes(String(identity)));
+
+      let stored = [];
+      if (authPool && wanted.length) {
+        const result = await authPool.query(
+          `SELECT message_key FROM whatsapp_recent_group_messages
+           WHERE remote_jid = $1
+             AND (participant = ANY($2::text[])
+               OR participant_alt = ANY($2::text[])
+               OR participant_lid = ANY($2::text[]))
+           ORDER BY created_at DESC
+           LIMIT $3`,
+          [jid, wanted, safeLimit]
+        );
+        stored = result.rows.map((row) => ({ key: row.message_key }));
+      }
+      const memory = Array.from(messageCache.values())
+        .filter((item) => item?.key?.remoteJid === jid && !item?.key?.fromMe && matches(item));
+      const byId = new Map();
+      for (const item of [...stored, ...memory]) {
+        if (item?.key?.id) byId.set(item.key.id, item);
+      }
+      return Array.from(byId.values()).slice(-safeLimit).reverse();
     };
     sock.ev.on("creds.update", () => {
       credsSavePromise = saveCreds().catch((error) => {
@@ -321,6 +347,32 @@ async function startWhatsApp() {
           rememberMessage(msg);
 
           const jid = msg.key?.remoteJid;
+          if (authPool && jid?.endsWith("@g.us") && msg.key?.id && !msg.key?.fromMe) {
+            const key = msg.key;
+            const participant = key.participant || null;
+            const participantAlt = key.participantAlt || msg.participantAlt || null;
+            const participantLid = key.participantLid || msg.participantLid || null;
+            authPool.query(
+              `INSERT INTO whatsapp_recent_group_messages
+                (remote_jid, message_id, participant, participant_alt, participant_lid, message_key)
+               VALUES ($1, $2, $3, $4, $5, $6::jsonb)
+               ON CONFLICT (remote_jid, message_id) DO UPDATE SET
+                 participant = EXCLUDED.participant,
+                 participant_alt = EXCLUDED.participant_alt,
+                 participant_lid = EXCLUDED.participant_lid,
+                 message_key = EXCLUDED.message_key,
+                 created_at = NOW()`,
+              [jid, key.id, participant, participantAlt, participantLid, JSON.stringify(key)]
+            ).catch((error) => console.error("Recent message persistence error:", error.message));
+            authPool.query(
+              `DELETE FROM whatsapp_recent_group_messages
+               WHERE remote_jid = $1 AND message_id IN (
+                 SELECT message_id FROM whatsapp_recent_group_messages
+                 WHERE remote_jid = $1 ORDER BY created_at DESC OFFSET 500
+               )`,
+              [jid]
+            ).catch((error) => console.error("Recent message cleanup error:", error.message));
+          }
           const globalSettings = settings.get("global");
 
           // Statuts : lecture automatique et réaction facultative.
