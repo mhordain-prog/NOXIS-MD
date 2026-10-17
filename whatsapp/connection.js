@@ -165,6 +165,16 @@ async function startWhatsApp() {
 
     whatsappRegistered = !!state.creds?.registered;
     sock = makeWASocket(socketOptions);
+    // Expose uniquement les messages déjà reçus et conservés en mémoire pour les commandes de modération.
+    sock.getRecentMessagesByParticipant = (jid, participant, limit = 20) =>
+      Array.from(messageCache.values())
+        .filter((item) =>
+          item?.key?.remoteJid === jid &&
+          item?.key?.participant === participant &&
+          !item?.key?.fromMe
+        )
+        .slice(-Math.max(1, Number(limit) || 20))
+        .reverse();
     sock.ev.on("creds.update", () => {
       credsSavePromise = saveCreds().catch((error) => {
         console.error("❌ Impossible de sauvegarder la session WhatsApp:", error.message);
