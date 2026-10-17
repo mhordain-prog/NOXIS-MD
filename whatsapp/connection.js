@@ -117,7 +117,7 @@ async function startWhatsApp() {
         });
         if (!response.ok) throw new Error("WhatsApp Web sw.js HTTP " + response.status);
         const data = await response.text();
-        const match = data.match(/\\?"client_revision\\?":\\s*(\\d+)/);
+        const match = data.match(/["\']?client_revision["\']?\s*:\s*(\d+)/);
         if (!match?.[1]) throw new Error("client_revision introuvable dans sw.js");
         version = [2, 3000, Number(match[1])];
         console.log("🌐 WhatsApp Web version live: " + version.join("."));
