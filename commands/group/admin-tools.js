@@ -5,7 +5,7 @@ async function metadata(sock, jid) {
 }
 
 function digits(value) {
-  return String(value || "").split(":")[0].replace(/\\D/g, "");
+  return String(value || "").split(":")[0].replace(/\D/g, "");
 }
 
 function findMember(meta, identity) {
