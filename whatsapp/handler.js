@@ -84,7 +84,9 @@ async function messageHandler(sock, msg) {
     const sender = msg.key.remoteJid;
     const connectedId = sock.user?.id;
     const isGroup = sender?.endsWith("@g.us");
-    const senderNumber = isGroup ? (msg.key.participant || "") : sender;
+    const senderNumber = msg.key.fromMe === true
+      ? (connectedId || msg.key.participant || sender)
+      : (isGroup ? (msg.key.participant || "") : sender);
 
     // Le compte connecté reste autorisé, et le numéro OWNER_NUMBER
     // configuré peut également envoyer des commandes au bot.
