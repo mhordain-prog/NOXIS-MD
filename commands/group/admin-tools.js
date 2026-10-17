@@ -4,9 +4,21 @@ async function metadata(sock, jid) {
   return sock.groupMetadata(jid);
 }
 
+function digits(value) {
+  return String(value || "").split(":")[0].replace(/\\D/g, "");
+}
+
+function findMember(meta, identity) {
+  return meta.participants.find(member =>
+    [member.id, member.phoneNumber, member.lid].some(value =>
+      value && (value === identity ||
+        (digits(value).length >= 6 && digits(value) === digits(identity)))
+    )
+  );
+}
+
 function isAdmin(meta, jid) {
-  const p = meta.participants.find(x => x.id === jid);
-  return !!p?.admin;
+  return ["admin", "superadmin"].includes(findMember(meta, jid)?.admin);
 }
 
 async function guard(sock, ctx) {
@@ -15,13 +27,14 @@ async function guard(sock, ctx) {
     return null;
   }
   const meta = await metadata(sock, ctx.sender);
-  if (!isAdmin(meta, ctx.sender)) {
+  const senderMember = findMember(meta, ctx.senderNumber);
+  if (!["admin", "superadmin"].includes(senderMember?.admin)) {
     await send(sock, ctx.sender, "❌ Réservé aux administrateurs.");
     return null;
   }
-  const bot = meta.participants.find(x => x.id === sock.user?.id?.split(":")[0] + "@s.whatsapp.net" || "");
-  if (!bot?.admin) {
-    await send(sock, ctx.sender, "❌ Le bot doit être administrateur.");
+  const bot = findMember(meta, sock.user?.id) || findMember(meta, sock.user?.lid);
+  if (!["admin", "superadmin"].includes(bot?.admin)) {
+    await send(sock, ctx.sender, "❌ Le compte WhatsApp de NOXIS-MD doit être administrateur.");
     return null;
   }
   return meta;
