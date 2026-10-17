@@ -8,8 +8,6 @@ const send = (sock, to, text, extra = {}) => sock.sendMessage(to, { text, ...ext
 const scopeFor = ctx => ctx.isGroup ? ctx.sender : "global";
 
 const booleanCommands = [
-  ["welcome", "welcome", "Welcome"],
-  ["goodbye", "goodbye", "Goodbye"],
   ["antilink", "antilink", "Anti-link"],
   ["antidelete", "antidelete", "Anti-delete"],
   ["antiedit", "antiedit", "Anti-edit"],
