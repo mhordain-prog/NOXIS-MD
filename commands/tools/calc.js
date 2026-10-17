@@ -6,7 +6,7 @@ module.exports = {
   async execute(sock, msg, args, c) {
     const expression = args.join("").replace(/,/g, ".").trim();
     if (!expression) return sock.sendMessage(c.sender, { text: "❌ Exemple : .calc 25*4+10" });
-    if (!/^[0-9+\\-*/%(). ]+$/.test(expression) || expression.length > 100) {
+    if (!/^[0-9+*/%(). -]+$/.test(expression) || expression.length > 100) {
       return sock.sendMessage(c.sender, { text: "❌ Expression non autorisée." });
     }
     try {
