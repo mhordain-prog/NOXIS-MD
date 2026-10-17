@@ -26,10 +26,17 @@ async function main() {
 
   const loader = require("./lib/commandLoader");
   await loader.loadCommands();
-  for (const name of ["menu", "ping", "promote", "demote", "kick", "deluser", "purge"]) {
+  for (const name of ["menu", "ping", "promote", "demote", "kick", "deluser", "purge", "welcome", "goodbye"]) {
     assert.ok(loader.getCommand(name), "Missing command: " + name);
     assert.strictEqual(typeof loader.getCommand(name).execute, "function", "Invalid command handler: " + name);
   }
+
+  assert.strictEqual(loader.getCommand("welcome").category, "group", "welcome must use the group toggle command");
+  assert.strictEqual(loader.getCommand("goodbye").category, "group", "goodbye must use the group toggle command");
+
+  const settingsStore = require("./lib/settingsStore");
+  assert.strictEqual(settingsStore.defaults.welcome, false, "welcome must be disabled by default");
+  assert.strictEqual(settingsStore.defaults.goodbye, false, "goodbye must be disabled by default");
 
   const permission = require("./lib/permissionMiddleware");
   for (const method of ["setRuntimeOwner", "isOwner", "isOwnerOrSudo", "getOwnerNumber"]) {
