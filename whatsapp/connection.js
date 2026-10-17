@@ -494,19 +494,26 @@ async function startWhatsApp() {
     sock.ev.on("group-participants.update", async ({ id, participants, action }) => {
       try {
         const groupSettings = settings.get(id);
-        if (!groupSettings.welcome && !groupSettings.goodbye) return;
+        const welcomeEnabled = groupSettings.welcome === true;
+        const goodbyeEnabled = groupSettings.goodbye === true;
+
+        console.log(
+          `👋 Member event in ${id}: action=${action}, welcome=${welcomeEnabled}, goodbye=${goodbyeEnabled}`
+        );
+
+        if (!welcomeEnabled && !goodbyeEnabled) return;
 
         const metadata = await sock.groupMetadata(id);
         const groupName = metadata?.subject || id;
         const memberCount = metadata?.participants?.length || 0;
 
-        if (action === "add" && groupSettings.welcome) {
+        if (action === "add" && welcomeEnabled) {
           for (const user of participants || []) {
             await sendMemberEventMessage(id, user, "welcome", groupName, groupSettings, memberCount);
           }
         }
 
-        if ((action === "remove" || action === "leave") && groupSettings.goodbye) {
+        if ((action === "remove" || action === "leave") && goodbyeEnabled) {
           for (const user of participants || []) {
             await sendMemberEventMessage(id, user, "goodbye", groupName, groupSettings);
           }
