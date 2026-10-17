@@ -6,6 +6,7 @@ const { spawnSync } = require("child_process");
 function walk(dir) {
   const result = [];
   for (const entry of fs.readdirSync(dir, { withFileTypes: true })) {
+    if (entry.isDirectory() && entry.name === "node_modules") continue;
     const full = path.join(dir, entry.name);
     if (entry.isDirectory()) result.push(...walk(full));
     else if (entry.isFile() && full.endsWith(".js")) result.push(full);
