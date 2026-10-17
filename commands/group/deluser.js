@@ -55,7 +55,7 @@ module.exports = {
 
       // Baileys ne fournit pas fetchMessagesFromWA : on utilise les messages
       // réellement reçus et conservés dans le cache runtime de NOXIS-MD.
-      const targetMessages = sock.getRecentMessagesByParticipant(
+      const targetMessages = await sock.getRecentMessagesByParticipant(
         jid,
         quotedParticipants,
         requested
