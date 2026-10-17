@@ -43,36 +43,48 @@ module.exports = {
     const requested = Math.min(Math.max(parseInt(args[0], 10) || 20, 1), 20);
 
     try {
-      const messages = await sock.fetchMessagesFromWA(jid, 100);
-      const targetMessages = messages
-        .filter(m =>
-          m?.key?.remoteJid === jid &&
-          m?.key?.participant === quotedParticipant &&
-          !m?.key?.fromMe
-        )
-        .slice(0, requested);
+      if (typeof sock.getRecentMessagesByParticipant !== "function") {
+        return sock.sendMessage(jid, {
+          text: "❌ Le cache des messages n'est pas disponible. Redémarre NOXIS-MD après la mise à jour."
+        });
+      }
+
+      // Baileys ne fournit pas fetchMessagesFromWA : on utilise les messages
+      // réellement reçus et conservés dans le cache runtime de NOXIS-MD.
+      const targetMessages = sock.getRecentMessagesByParticipant(
+        jid,
+        quotedParticipant,
+        requested
+      );
+
+      if (!targetMessages.length) {
+        return sock.sendMessage(jid, {
+          text: "⚠️ Aucun message récent de cette personne n'est disponible dans le cache. Les anciens messages non mémorisés ne peuvent pas être récupérés."
+        });
+      }
 
       let deleted = 0;
+      let failed = 0;
 
       for (const target of targetMessages) {
         try {
-          await sock.sendMessage(jid, {
-            delete: target.key
-          });
+          await sock.sendMessage(jid, { delete: target.key });
           deleted++;
           await new Promise(resolve => setTimeout(resolve, 500));
         } catch (error) {
-          console.error("deluser delete error:", error);
+          failed++;
+          console.error("deluser delete error:", error.message);
         }
       }
 
       await sock.sendMessage(jid, {
-        text: `🧹 Deluser terminé : ${deleted}/${requested} message(s) supprimé(s).`
+        text: `🧹 Deluser terminé pour @${String(quotedParticipant).split("@")[0]} : ${deleted}/${targetMessages.length} message(s) supprimé(s).${failed ? ` Échecs : ${failed}.` : ""}\nℹ️ Limite : 20 messages récents mémorisés au maximum.`,
+        mentions: [quotedParticipant]
       });
     } catch (error) {
       console.error("deluser error:", error);
       await sock.sendMessage(jid, {
-        text: "❌ Impossible de récupérer les messages à supprimer."
+        text: "❌ Erreur pendant la récupération ou la suppression des messages."
       });
     }
   }
