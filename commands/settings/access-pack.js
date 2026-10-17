@@ -32,12 +32,10 @@ function jidFrom(args, msg) {
 }
 
 async function owner(sock, ctx) {
-  const settings = require("../../lib/settingsStore");
-  const globalOwner = settings.get("global")?.ownernumber;
-  const ownerNumber = digits(globalOwner || require("../../config").owner);
+  const permissionMiddleware = require("../../lib/permissionMiddleware");
   const senderNumber = digits(ctx.senderNumber);
 
-  if (!ownerNumber || senderNumber !== ownerNumber) {
+  if (!permissionMiddleware.isOwnerOrSudo(senderNumber)) {
     await sock.sendMessage(ctx.sender, { text: "❌ Réservé au propriétaire." });
     return false;
   }
