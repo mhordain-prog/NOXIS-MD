@@ -166,15 +166,33 @@ async function startWhatsApp() {
     whatsappRegistered = !!state.creds?.registered;
     sock = makeWASocket(socketOptions);
     // Expose uniquement les messages déjà reçus et conservés en mémoire pour les commandes de modération.
-    sock.getRecentMessagesByParticipant = (jid, participant, limit = 20) =>
-      Array.from(messageCache.values())
-        .filter((item) =>
-          item?.key?.remoteJid === jid &&
-          item?.key?.participant === participant &&
-          !item?.key?.fromMe
-        )
+    sock.getRecentMessagesByParticipant = (jid, participants, limit = 20) => {
+      const wanted = new Set((Array.isArray(participants) ? participants : [participants])
+        .filter(Boolean).map(String));
+      const matchesIdentity = (value) => {
+        if (!value) return false;
+        const candidate = String(value);
+        if (wanted.has(candidate)) return true;
+        // Certaines versions de WhatsApp exposent le même membre en JID
+        // téléphone (@s.whatsapp.net) et en LID (@lid). Comparer les champs
+        // alternatifs fournis par Baileys évite de perdre ces correspondances.
+        return false;
+      };
+      return Array.from(messageCache.values())
+        .filter((item) => {
+          if (item?.key?.remoteJid !== jid || item?.key?.fromMe) return false;
+          const identities = [
+            item?.key?.participant,
+            item?.key?.participantAlt,
+            item?.key?.participantLid,
+            item?.participant,
+            item?.participantAlt
+          ].filter(Boolean);
+          return identities.some(matchesIdentity);
+        })
         .slice(-Math.max(1, Number(limit) || 20))
         .reverse();
+    };
     sock.ev.on("creds.update", () => {
       credsSavePromise = saveCreds().catch((error) => {
         console.error("❌ Impossible de sauvegarder la session WhatsApp:", error.message);
