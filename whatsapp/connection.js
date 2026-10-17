@@ -185,6 +185,26 @@ async function startWhatsApp() {
       `);
     }
 
+    // Lecture de l'historique sauvegardé en base, filtré par groupe et participant.
+    async function loadFromDB(jid, participants, limit = 20) {
+      if (!authPool) return [];
+      const wanted = [...new Set((Array.isArray(participants) ? participants : [participants])
+        .filter(Boolean).map(String))];
+      if (!wanted.length) return [];
+      const safeLimit = Math.min(Math.max(Number(limit) || 20, 1), 20);
+      const result = await authPool.query(
+        `SELECT message_key FROM whatsapp_recent_group_messages
+         WHERE remote_jid = $1
+           AND (participant = ANY($2::text[])
+             OR participant_alt = ANY($2::text[])
+             OR participant_lid = ANY($2::text[]))
+         ORDER BY created_at DESC
+         LIMIT $3`,
+        [jid, wanted, safeLimit]
+      );
+      return result.rows.map((row) => ({ key: row.message_key }));
+    }
+
     sock.getRecentMessagesByParticipant = async (jid, participants, limit = 20) => {
       const wanted = [...new Set((Array.isArray(participants) ? participants : [participants])
         .filter(Boolean).map(String))];
@@ -197,24 +217,12 @@ async function startWhatsApp() {
         item?.participantAlt
       ].some((identity) => identity && wanted.includes(String(identity)));
 
-      let stored = [];
-      if (authPool && wanted.length) {
-        const result = await authPool.query(
-          `SELECT message_key FROM whatsapp_recent_group_messages
-           WHERE remote_jid = $1
-             AND (participant = ANY($2::text[])
-               OR participant_alt = ANY($2::text[])
-               OR participant_lid = ANY($2::text[]))
-           ORDER BY created_at DESC
-           LIMIT $3`,
-          [jid, wanted, safeLimit]
-        );
-        stored = result.rows.map((row) => ({ key: row.message_key }));
-      }
+      // Historique persistant (PostgreSQL) + messages encore en mémoire.
+      const history = await loadFromDB(jid, wanted, safeLimit);
       const memory = Array.from(messageCache.values())
         .filter((item) => item?.key?.remoteJid === jid && !item?.key?.fromMe && matches(item));
       const byId = new Map();
-      for (const item of [...stored, ...memory]) {
+      for (const item of [...history, ...memory]) {
         if (item?.key?.id) byId.set(item.key.id, item);
       }
       return Array.from(byId.values()).slice(-safeLimit).reverse();
