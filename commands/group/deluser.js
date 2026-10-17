@@ -12,11 +12,15 @@ module.exports = {
       });
     }
 
-    const quoted = msg.message?.extendedTextMessage?.contextInfo?.quotedMessage;
-    const quotedParticipant =
-      msg.message?.extendedTextMessage?.contextInfo?.participant;
+    const contextInfo = msg.message?.extendedTextMessage?.contextInfo;
+    const quoted = contextInfo?.quotedMessage;
+    const quotedParticipants = [
+      contextInfo?.participant,
+      contextInfo?.participantAlt,
+      contextInfo?.participantLid
+    ].filter(Boolean);
 
-    if (!quoted || !quotedParticipant) {
+    if (!quoted || !quotedParticipants.length) {
       return sock.sendMessage(jid, {
         text: "❌ Réponds au message du spammeur avec : .deluser 20"
       });
@@ -32,7 +36,7 @@ module.exports = {
       });
     }
 
-    const targetMember = metadata.participants.find(p => p.id === quotedParticipant);
+    const targetMember = metadata.participants.find(p => [p.id, p.lid, p.phoneNumber].some(id => id && quotedParticipants.includes(id)));
 
     if (targetMember && ["admin", "superadmin"].includes(targetMember.admin)) {
       return sock.sendMessage(jid, {
@@ -53,7 +57,7 @@ module.exports = {
       // réellement reçus et conservés dans le cache runtime de NOXIS-MD.
       const targetMessages = sock.getRecentMessagesByParticipant(
         jid,
-        quotedParticipant,
+        quotedParticipants,
         requested
       );
 
@@ -78,8 +82,8 @@ module.exports = {
       }
 
       await sock.sendMessage(jid, {
-        text: `🧹 Deluser terminé pour @${String(quotedParticipant).split("@")[0]} : ${deleted}/${targetMessages.length} message(s) supprimé(s).${failed ? ` Échecs : ${failed}.` : ""}\nℹ️ Limite : 20 messages récents mémorisés au maximum.`,
-        mentions: [quotedParticipant]
+        text: `🧹 Deluser terminé pour @${String(quotedParticipants[0]).split("@")[0]} : ${deleted}/${targetMessages.length} message(s) supprimé(s).${failed ? ` Échecs : ${failed}.` : ""}\nℹ️ Limite : 20 messages récents mémorisés au maximum.`,
+        mentions: [quotedParticipants[0]]
       });
     } catch (error) {
       console.error("deluser error:", error);
